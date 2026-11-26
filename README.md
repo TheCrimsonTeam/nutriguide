@@ -69,6 +69,8 @@ The debug APK is generated at:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
+After a successful GitHub Actions run, open the run's **Artifacts** section and download `NutriGuide-debug-apk`. Extract the ZIP to get `NutriGuide-debug.apk`, then open the APK on the Android device and approve installation when Android asks. No Android Studio or ADB is needed. The artifact is an APK, not an AAB. Failed runs publish diagnostics instead of pretending an APK exists.
+
 The Gradle Wrapper JAR and launch scripts are pinned from the official Gradle `v9.6.0` source. CI uses the same wrapper so local and automated builds use the same Gradle distribution.
 
 ## Food analysis backend configuration
@@ -115,6 +117,6 @@ The file contains eleven native editable screen frames and a semantic Light/Dark
 
 ## Testing and release status
 
-GitHub Actions runs unit tests, Android lint and a debug build on pushes to `develop` and pull requests. CI will upload the debug APK when the build succeeds.
+GitHub Actions runs unit tests, Android lint, `./gradlew assembleDebug`, APK existence checks and Android debug-signature verification on pushes to `develop` and pull requests. On success, it uploads the installable file as the **`NutriGuide-debug-apk`** artifact (file: `NutriGuide-debug.apk`). It also always uploads `NutriGuide-build-diagnostics` with Gradle logs, test XML results and test reports when available. Both artifacts are retained for 30 days.
 
 Not yet completed: authenticated backend, live AI provider, nutrition database matching UI, IFCT commercial-product permission, image benchmark dataset, cloud sync, full set editing/reordering/deletion, device-level camera verification, release signing, AAB and production deployment. No Play Store publication or paid cloud resource has been initiated.

@@ -70,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -501,18 +502,21 @@ private fun MealDiaryScreen(
     onDelete: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
+    val timeFormatter = remember(locale) { SimpleDateFormat("HH:mm", locale) }
+
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         BackHeading("Food diary", onBack)
         Spacer(Modifier.height(10.dp))
         if (meals.isEmpty()) {
             EmptyCard("No meals yet", "Meals you save will be organised here by date and meal type.")
         } else {
-            val groupedMeals = meals.groupBy { dayKey(it.createdAt) }
+            val groupedMeals = meals.groupBy { dayKey(it.createdAt, locale) }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 groupedMeals.forEach { (day, dayMeals) ->
                     item(key = "day-$day") {
                         Text(
-                            formatDay(dayMeals.first().createdAt),
+                            formatDay(dayMeals.first().createdAt, locale),
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(top = 6.dp)
                         )
@@ -523,7 +527,7 @@ private fun MealDiaryScreen(
                                 Column(Modifier.weight(1f).clickable { onMeal(meal.id) }) {
                                     Text(meal.mealType, style = MaterialTheme.typography.titleMedium)
                                     Text(
-                                        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(meal.createdAt)),
+                                        timeFormatter.format(Date(meal.createdAt)),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -990,11 +994,11 @@ private fun completeTotal(values: List<Double?>): Double? {
     return values.sumOf { it ?: 0.0 }
 }
 
-private fun dayKey(time: Long): String =
-    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(time))
+private fun dayKey(time: Long, locale: Locale): String =
+    SimpleDateFormat("yyyy-MM-dd", locale).format(Date(time))
 
-private fun formatDay(time: Long): String =
-    SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(time))
+private fun formatDay(time: Long, locale: Locale): String =
+    SimpleDateFormat("EEEE, d MMMM", locale).format(Date(time))
 
 private fun formatDate(time: Long): String =
     SimpleDateFormat("dd MMM yyyy · HH:mm", Locale.getDefault()).format(Date(time))

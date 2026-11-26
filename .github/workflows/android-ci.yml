@@ -54,6 +54,13 @@ jobs:
           set -o pipefail
           ./gradlew testDebugUnitTest --stacktrace 2>&1 | tee build-logs/unit-tests.log
 
+      - name: Run Android lint
+        id: lint-debug
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew lintDebug --stacktrace 2>&1 | tee build-logs/lint-debug.log
+
       - name: Assemble installable debug APK
         id: assemble-debug-apk
         shell: bash
@@ -107,9 +114,15 @@ jobs:
             cp -R app/build/reports/tests/testDebugUnitTest/. build-logs/test-reports/
           fi
 
+          mkdir -p build-logs/lint-reports
+          if [[ -d app/build/reports/lint-results-debug.html ]]; then
+            cp -R app/build/reports/lint-results-debug.html build-logs/lint-reports/ 2>/dev/null || true
+          fi
+
           cat > build-logs/build-status.txt <<'STATUS'
           Commit: ${{ github.sha }}
           Unit tests: ${{ steps.unit-tests.outcome }}
+          Android lint: ${{ steps.lint-debug.outcome }}
           Debug APK assembly: ${{ steps.assemble-debug-apk.outcome }}
           APK verification: ${{ steps.verify-apk.outcome }}
           APK artifact upload: ${{ steps.upload-apk.outcome }}
@@ -135,6 +148,7 @@ jobs:
             echo "| Check | Result |"
             echo "|---|---|"
             echo "| Unit tests | **${{ steps.unit-tests.outcome }}** |"
+            echo "| Android lint | **${{ steps.lint-debug.outcome }}** |"
             echo "| Debug APK assembly | **${{ steps.assemble-debug-apk.outcome }}** |"
             echo "| APK verification | **${{ steps.verify-apk.outcome }}** |"
             echo "| APK artifact upload | **${{ steps.upload-apk.outcome }}** |"
