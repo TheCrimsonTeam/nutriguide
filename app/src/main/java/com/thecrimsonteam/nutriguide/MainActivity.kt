@@ -1,0 +1,41 @@
+package com.thecrimsonteam.nutriguide
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.lifecycle.ViewModelProvider
+import androidx.room.Room
+import com.thecrimsonteam.nutriguide.data.local.NutriGuideDatabase
+import com.thecrimsonteam.nutriguide.data.remote.FoodAnalysisClient
+import com.thecrimsonteam.nutriguide.data.repository.LocalExerciseRepository
+import com.thecrimsonteam.nutriguide.data.repository.LocalNutritionRepository
+import com.thecrimsonteam.nutriguide.data.repository.LocalTrainingRepository
+import com.thecrimsonteam.nutriguide.ui.AppViewModel
+import com.thecrimsonteam.nutriguide.ui.AppViewModelFactory
+import com.thecrimsonteam.nutriguide.ui.NutriGuideApp
+
+class MainActivity : ComponentActivity() {
+    private lateinit var viewModel: AppViewModel
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val database = Room.databaseBuilder(
+            applicationContext,
+            NutriGuideDatabase::class.java,
+            "nutriguide.db"
+        ).build()
+
+        val factory = AppViewModelFactory(
+            nutrition = LocalNutritionRepository(database, database.mealDao()),
+            training = LocalTrainingRepository(database.workoutDao()),
+            exercises = LocalExerciseRepository(database.customExerciseDao()),
+            foodApi = FoodAnalysisClient.createOrNull()
+        )
+        viewModel = ViewModelProvider(this, factory)[AppViewModel::class.java]
+
+        setContent {
+            NutriGuideApp(viewModel = viewModel)
+        }
+    }
+}
