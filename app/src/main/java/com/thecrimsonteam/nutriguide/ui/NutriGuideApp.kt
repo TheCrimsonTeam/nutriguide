@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +31,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Restaurant
@@ -736,8 +739,8 @@ private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Un
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 10.dp)
             ) {
-                items(viewModel.activeEntries, key = { it.id }) { entry ->
-                    WorkoutEntryCard(entry, viewModel)
+                itemsIndexed(viewModel.activeEntries, key = { _, entry -> entry.id }) { index, entry ->
+                    WorkoutEntryCard(entry, viewModel, index, viewModel.activeEntries.size)
                 }
             }
         }
@@ -752,17 +755,31 @@ private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Un
 }
 
 @Composable
-private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel) {
+private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel, index: Int, total: Int) {
     var reps by rememberSaveable(entry.id) { mutableStateOf("8") }
     var weight by rememberSaveable(entry.id) { mutableStateOf("") }
     var duration by rememberSaveable(entry.id) { mutableStateOf("20") }
     var distance by rememberSaveable(entry.id) { mutableStateOf("") }
+    var editingSetId by rememberSaveable(entry.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(entry.id) { viewModel.observeSets(entry.id) }
 
     Card {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(entry.exerciseName, style = MaterialTheme.typography.titleMedium)
-            Text(entry.category, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(entry.exerciseName, style = MaterialTheme.typography.titleMedium)
+                    Text(entry.category, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = { viewModel.moveEntry(entry.id, -1) }, enabled = index > 0) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move exercise up")
+                }
+                IconButton(onClick = { viewModel.moveEntry(entry.id, 1) }, enabled = index < total - 1) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move exercise down")
+                }
+                IconButton(onClick = { viewModel.removeEntry(entry.id) }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove exercise")
+                }
+            }
             when (entry.trackingType) {
                 "CARDIO" -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -789,7 +806,44 @@ private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel)
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save set / activity") }
             viewModel.setsByEntry[entry.id].orEmpty().forEach { set ->
-                Text(formatSet(entry, set), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        formatSet(entry, set),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = {
+                        editingSetId = set.id
+                        reps = set.repetitions?.toString() ?: ""
+                        weight = set.weightKg?.toString() ?: ""
+                        duration = set.durationSeconds?.div(60)?.toString() ?: ""
+                        distance = set.distanceMeters?.div(1000.0)?.toString() ?: ""
+                    }) { Text("Edit") }
+                    IconButton(onClick = { viewModel.removeSet(set.id) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete set")
+                    }
+                }
+                if (editingSetId == set.id) {
+                    Button(
+                        onClick = {
+                            val revised = when (entry.trackingType) {
+                                "CARDIO" -> set.copy(
+                                    durationSeconds = duration.toIntOrNull()?.times(60),
+                                    distanceMeters = distance.toDoubleOrNull()?.times(1000.0)
+                                )
+                                "DURATION" -> set.copy(durationSeconds = duration.toIntOrNull()?.times(60))
+                                else -> set.copy(
+                                    repetitions = reps.toIntOrNull(),
+                                    weightKg = weight.toDoubleOrNull()
+                                )
+                            }
+                            viewModel.updateSet(revised)
+                            editingSetId = null
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Save set changes") }
+                }
             }
         }
     }
