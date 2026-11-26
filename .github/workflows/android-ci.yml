@@ -39,7 +39,7 @@ jobs:
       - name: Install Android SDK packages
         run: |
           sdkmanager --install "platforms;android-37.1" "build-tools;37.0.0" "platform-tools"
-          yes | sdkmanager --licenses >/dev/null
+          yes | sdkmanager --licenses >/dev/null || true
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -52,14 +52,14 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew --no-daemon testDebugUnitTest --stacktrace 2>&1 | tee build-logs/unit-tests.log
+          ./gradlew testDebugUnitTest --stacktrace 2>&1 | tee build-logs/unit-tests.log
 
       - name: Assemble installable debug APK
         id: assemble-debug-apk
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew --no-daemon assembleDebug --stacktrace 2>&1 | tee build-logs/assemble-debug.log
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build-logs/assemble-debug.log
 
       - name: Verify APK and Android debug signature
         id: verify-apk
