@@ -3,11 +3,10 @@ name: NutriGuide Android Debug APK
 on:
   push:
     branches:
-      - develop
+      - "**"
   pull_request:
     branches:
-      - develop
-      - main
+      - "**"
   workflow_dispatch:
 
 permissions:
@@ -28,7 +27,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -117,8 +116,8 @@ jobs:
           fi
 
           mkdir -p build-logs/lint-reports
-          if [[ -d app/build/reports/lint-results-debug.html ]]; then
-            cp -R app/build/reports/lint-results-debug.html build-logs/lint-reports/ 2>/dev/null || true
+          if [[ -f app/build/reports/lint-results-debug.html ]]; then
+            cp app/build/reports/lint-results-debug.html build-logs/lint-reports/ 2>/dev/null || true
           fi
 
           cat > build-logs/build-status.txt <<'STATUS'
@@ -135,8 +134,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NutriGuide-build-diagnostics
-          path: |
-            build-logs/**
+          path: build-logs/**
           if-no-files-found: warn
           retention-days: 30
 
