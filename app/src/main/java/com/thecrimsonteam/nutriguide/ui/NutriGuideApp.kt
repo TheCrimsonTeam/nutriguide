@@ -2,6 +2,7 @@ package com.thecrimsonteam.nutriguide.ui
 
 import android.Manifest
 import android.content.Context
+import android.os.SystemClock
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -101,6 +102,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.delay
 
 private val mealTypes = listOf("Breakfast", "Lunch", "Dinner", "Snack")
 
@@ -978,10 +980,37 @@ private fun ExerciseDetailScreen(exercise: ExerciseDefinition?, onAdd: () -> Uni
 
 @Composable
 private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Unit, onFinish: () -> Unit) {
+    val sessionElapsed = remember { mutableStateOf(viewModel.currentElapsedMillis()) }
+    var restStartTrigger by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(viewModel.activeWorkoutId, viewModel.activeWorkout?.isPaused) {
+        while (viewModel.activeWorkoutId != null) {
+            sessionElapsed.value = viewModel.currentElapsedMillis()
+            delay(1000)
+        }
+    }
     Column(Modifier.fillMaxSize().padding(18.dp)) {
         Text("Workout in progress", style = MaterialTheme.typography.headlineMedium)
         Text("Log each exercise using the fields that apply.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
+        Card {
+            Row(
+                Modifier.fillMaxWidth().padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("SESSION TIME", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(formatElapsedClock(sessionElapsed.value), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                }
+                OutlinedButton(
+                    onClick = {
+                        if (viewModel.activeWorkout?.isPaused == true) viewModel.resumeWorkout()
+                        else viewModel.pauseWorkout()
+                    }
+                ) { Text(if (viewModel.activeWorkout?.isPaused == true) "Resume" else "Pause") }
+            }
+        }
+        WorkoutRestTimer(startTrigger = restStartTrigger)
         if (viewModel.activeEntries.isEmpty()) {
             EmptyCard("No exercises added", "Browse the exercise library to add movements to this workout.")
         } else {
@@ -991,7 +1020,7 @@ private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Un
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 10.dp)
             ) {
                 itemsIndexed(viewModel.activeEntries, key = { _, entry -> entry.id }) { index, entry ->
-                    WorkoutEntryCard(entry, viewModel, index, viewModel.activeEntries.size)
+                    WorkoutEntryCard(entry, viewModel, index, viewModel.activeEntries.size) { restStartTrigger += 1 }
                 }
             }
         }
@@ -1005,8 +1034,16 @@ private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Un
     }
 }
 
+private fun formatElapsedClock(elapsedMillis: Long): String {
+    val totalSeconds = (elapsedMillis.coerceAtLeast(0L) / 1000L).toInt()
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d:%02d".format(hours, minutes, seconds)
+}
+
 @Composable
-private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel, index: Int, total: Int) {
+private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel, index: Int, total: Int, onSetSaved: () -> Unit) {
     var reps by rememberSaveable(entry.id) { mutableStateOf("8") }
     var weight by rememberSaveable(entry.id) { mutableStateOf("") }
     var duration by rememberSaveable(entry.id) { mutableStateOf("20") }
@@ -1053,6 +1090,7 @@ private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel,
                         "DURATION" -> viewModel.addSet(entry, null, null, duration.toIntOrNull()?.times(60), null)
                         else -> viewModel.addSet(entry, reps.toIntOrNull(), weight.toDoubleOrNull(), null, null)
                     }
+                    onSetSaved()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save set / activity") }

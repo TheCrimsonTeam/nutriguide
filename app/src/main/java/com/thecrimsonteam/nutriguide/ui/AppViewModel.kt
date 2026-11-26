@@ -2,6 +2,7 @@ package com.thecrimsonteam.nutriguide.ui
 
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.thecrimsonteam.nutriguide.data.local.CustomExerciseEntity
@@ -18,6 +19,7 @@ import com.thecrimsonteam.nutriguide.data.catalog.ExerciseDefinition
 import com.thecrimsonteam.nutriguide.domain.model.FoodDraft
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -44,6 +46,8 @@ class AppViewModel(
         private set
     var activeWorkoutId: String? = null
         private set
+    var activeWorkout: WorkoutEntity? = null
+        private set
     var isAnalyzing: Boolean = false
         private set
     var analysisMessage: String = ""
@@ -53,12 +57,26 @@ class AppViewModel(
 
     init {
         viewModelScope.launch { nutrition.meals().collectLatest { meals = it; refresh() } }
-        viewModelScope.launch { training.workouts().collectLatest { workouts = it; refresh() } }
+        viewModelScope.launch {
+            training.workouts().collectLatest { latest ->
+                workouts = latest
+                activeWorkoutId?.let { id ->
+                    activeWorkout = latest.firstOrNull { it.id == id } ?: activeWorkout
+                }
+                if (!recoveredSession) {
+                    recoveredSession = true
+                    latest.firstOrNull { it.finishedAt == null }?.let(::recoverWorkout)
+                }
+                refresh()
+            }
+        }
         viewModelScope.launch { exercises.customExercises().collectLatest { customExercises = it; refresh() } }
     }
 
     private val observers = mutableSetOf<() -> Unit>()
     private var activeEntriesJob: Job? = null
+    private var sessionCheckpointJob: Job? = null
+    private var recoveredSession = false
     fun observe(observer: () -> Unit) { observers += observer }
     fun removeObserver(observer: () -> Unit) { observers -= observer }
     private fun refresh() { observers.toList().forEach { it() } }
@@ -178,14 +196,92 @@ class AppViewModel(
 
     fun startWorkout(name: String = "Workout") {
         activeEntriesJob?.cancel()
-        val workout = WorkoutEntity(name = name.ifBlank { "Workout" })
+        sessionCheckpointJob?.cancel()
+        val workout = WorkoutEntity(
+            name = name.ifBlank { "Workout" },
+            runningSinceElapsedRealtime = SystemClock.elapsedRealtime()
+        )
+        recoveredSession = true
+        activeWorkout = workout
         activeWorkoutId = workout.id
         activeEntries = emptyList()
         setsByEntry = emptyMap()
         refresh()
+        viewModelScope.launch { training.createWorkout(workout) }
+        observeWorkoutEntries(workout.id)
+        startSessionCheckpoints()
+    }
+
+    private fun recoverWorkout(saved: WorkoutEntity) {
+        val now = SystemClock.elapsedRealtime()
+        // elapsedRealtime resets on device reboot. Preserve the last checkpoint and pause safely.
+        val recovered = if (saved.runningSinceElapsedRealtime != null && saved.runningSinceElapsedRealtime > now) {
+            saved.copy(isPaused = true, runningSinceElapsedRealtime = null)
+        } else saved
+        activeWorkout = recovered
+        activeWorkoutId = recovered.id
+        if (recovered !== saved) viewModelScope.launch { training.updateWorkout(recovered) }
+        observeWorkoutEntries(recovered.id)
+        startSessionCheckpoints()
+    }
+
+    private fun observeWorkoutEntries(workoutId: String) {
+        activeEntriesJob?.cancel()
         activeEntriesJob = viewModelScope.launch {
-            training.createWorkout(workout)
-            training.entries(workout.id).collectLatest { activeEntries = it; refresh() }
+            training.entries(workoutId).collectLatest { activeEntries = it; refresh() }
+        }
+    }
+
+    fun currentElapsedMillis(): Long {
+        val workout = activeWorkout ?: return 0L
+        val since = workout.runningSinceElapsedRealtime ?: return workout.elapsedMillis
+        val now = SystemClock.elapsedRealtime()
+        return workout.elapsedMillis + (now - since).coerceAtLeast(0L)
+    }
+
+    fun pauseWorkout() {
+        val workout = activeWorkout ?: return
+        if (workout.isPaused || workout.runningSinceElapsedRealtime == null) return
+        val paused = workout.copy(
+            elapsedMillis = currentElapsedMillis(),
+            runningSinceElapsedRealtime = null,
+            isPaused = true
+        )
+        activeWorkout = paused
+        refresh()
+        viewModelScope.launch { training.updateWorkout(paused) }
+    }
+
+    fun resumeWorkout() {
+        val workout = activeWorkout ?: return
+        if (!workout.isPaused) return
+        val resumed = workout.copy(
+            runningSinceElapsedRealtime = SystemClock.elapsedRealtime(),
+            isPaused = false
+        )
+        activeWorkout = resumed
+        refresh()
+        viewModelScope.launch { training.updateWorkout(resumed) }
+    }
+
+    private fun startSessionCheckpoints() {
+        sessionCheckpointJob?.cancel()
+        sessionCheckpointJob = viewModelScope.launch {
+            while (activeWorkoutId != null) {
+                delay(30_000)
+                val current = activeWorkout ?: continue
+                val since = current.runningSinceElapsedRealtime ?: continue
+                val now = SystemClock.elapsedRealtime()
+                if (now >= since) {
+                    val checkpoint = current.copy(
+                        elapsedMillis = current.elapsedMillis + (now - since),
+                        runningSinceElapsedRealtime = now
+                    )
+                    activeWorkout = checkpoint
+                    training.updateWorkout(checkpoint)
+                    refresh()
+                }
+            }
         }
     }
 
@@ -262,16 +358,23 @@ class AppViewModel(
     }
 
     fun finishWorkout() {
-        val id = activeWorkoutId ?: return
+        val current = activeWorkout ?: return
+        sessionCheckpointJob?.cancel()
+        sessionCheckpointJob = null
         activeEntriesJob?.cancel()
         activeEntriesJob = null
-        viewModelScope.launch {
-            training.finishWorkout(id)
-            activeWorkoutId = null
-            activeEntries = emptyList()
-            setsByEntry = emptyMap()
-            refresh()
-        }
+        val finished = current.copy(
+            finishedAt = System.currentTimeMillis(),
+            elapsedMillis = currentElapsedMillis(),
+            runningSinceElapsedRealtime = null,
+            isPaused = true
+        )
+        activeWorkout = null
+        activeWorkoutId = null
+        activeEntries = emptyList()
+        setsByEntry = emptyMap()
+        refresh()
+        viewModelScope.launch { training.updateWorkout(finished) }
     }
 
     fun saveCustomExercise(

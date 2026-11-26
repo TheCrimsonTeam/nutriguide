@@ -44,7 +44,10 @@ data class WorkoutEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
     val startedAt: Long = System.currentTimeMillis(),
-    val finishedAt: Long? = null
+    val finishedAt: Long? = null,
+    val elapsedMillis: Long = 0L,
+    val runningSinceElapsedRealtime: Long? = null,
+    val isPaused: Boolean = false
 )
 
 @Entity(

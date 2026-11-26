@@ -40,6 +40,8 @@ interface TrainingRepository {
     fun entries(workoutId: String): Flow<List<WorkoutEntryEntity>>
     fun sets(entryId: String): Flow<List<WorkoutSetEntity>>
     suspend fun createWorkout(workout: WorkoutEntity)
+    suspend fun getWorkout(id: String): WorkoutEntity?
+    suspend fun updateWorkout(workout: WorkoutEntity)
     suspend fun addExercise(entry: WorkoutEntryEntity)
     suspend fun addSet(set: WorkoutSetEntity)
     suspend fun updateEntry(entry: WorkoutEntryEntity)
@@ -54,6 +56,8 @@ class LocalTrainingRepository(private val dao: WorkoutDao) : TrainingRepository 
     override fun entries(workoutId: String) = dao.observeEntries(workoutId)
     override fun sets(entryId: String) = dao.observeSets(entryId)
     override suspend fun createWorkout(workout: WorkoutEntity) = dao.insertWorkout(workout)
+    override suspend fun getWorkout(id: String) = dao.getWorkout(id)
+    override suspend fun updateWorkout(workout: WorkoutEntity) = dao.updateWorkout(workout)
     override suspend fun addExercise(entry: WorkoutEntryEntity) = dao.insertEntry(entry)
     override suspend fun addSet(set: WorkoutSetEntity) = dao.insertSet(set)
     override suspend fun updateEntry(entry: WorkoutEntryEntity) = dao.updateEntry(entry)

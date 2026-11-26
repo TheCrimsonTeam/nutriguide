@@ -36,7 +36,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.thecrimsonteam.nutriguide.data.catalog.ExerciseDefinition
-import kotlin.math.sin
 
 enum class ExerciseMotionPattern {
     SQUAT, HINGE, LUNGE, PUSH, PULL, ROW, CURL, RAISE, EXTENSION, CORE, CARDIO, MOBILITY, HOLD
@@ -187,7 +186,7 @@ private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgre
     val h = size.height
     val cx = w * 0.5f
     val p = rawProgress.coerceIn(0f, 1f)
-    val pulse = sin(p * Math.PI).toFloat()
+    val pulse = p
     val stroke = (size.minDimension * 0.026f).coerceAtLeast(4f)
     val ink = Color(0xFFF4F4F4)
     val muted = Color(0xFF777777)

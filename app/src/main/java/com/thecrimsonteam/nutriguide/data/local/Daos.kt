@@ -30,6 +30,12 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts ORDER BY startedAt DESC")
     fun observeWorkouts(): Flow<List<WorkoutEntity>>
 
+    @Query("SELECT * FROM workouts WHERE id = :workoutId LIMIT 1")
+    suspend fun getWorkout(workoutId: String): WorkoutEntity?
+
+    @Update
+    suspend fun updateWorkout(workout: WorkoutEntity)
+
     @Query("SELECT * FROM workout_entries WHERE workoutId = :workoutId ORDER BY sortOrder")
     fun observeEntries(workoutId: String): Flow<List<WorkoutEntryEntity>>
 
