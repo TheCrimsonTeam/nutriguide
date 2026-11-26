@@ -155,7 +155,8 @@ fun RoutinePlannerScreen(
                     viewModel.routines.forEach { routine ->
                         RoutineSummaryCard(
                             routine = routine,
-                            onStart = { viewModel.startRoutine(routine.id); onStart() },
+                            startEnabled = !viewModel.isLaunchingRoutine,
+                            onStart = { viewModel.startRoutine(routine.id, onStart) },
                             onEdit = { editingId = routine.id; formOpen = true },
                             onDelete = { viewModel.deleteRoutine(routine.id) }
                         )
@@ -263,7 +264,8 @@ fun RoutinePlannerScreen(
                     ScheduledWorkoutCard(
                         scheduled = scheduled,
                         name = name,
-                        onStart = { viewModel.startScheduledWorkout(scheduled.id); onStart() },
+                        startEnabled = !viewModel.isLaunchingRoutine && scheduled.status == "PLANNED",
+                        onStart = { viewModel.startScheduledWorkout(scheduled.id, onStart) },
                         onMove = { viewModel.moveScheduledWorkout(scheduled.id, it) },
                         onComplete = { viewModel.setScheduledStatus(scheduled.id, "COMPLETED") },
                         onRemove = { viewModel.removeScheduledWorkout(scheduled.id) }
@@ -276,13 +278,13 @@ fun RoutinePlannerScreen(
 }
 
 @Composable
-private fun RoutineSummaryCard(routine: WorkoutRoutineEntity, onStart: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun RoutineSummaryCard(routine: WorkoutRoutineEntity, startEnabled: Boolean, onStart: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
         Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text(routine.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (routine.description.isNotBlank()) Text(routine.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Button(onClick = onStart, modifier = Modifier.weight(1f)) {
+                Button(onClick = onStart, enabled = startEnabled, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Text("Start")
                 }
@@ -341,6 +343,7 @@ private fun RoutineExerciseEditor(
 private fun ScheduledWorkoutCard(
     scheduled: ScheduledWorkoutEntity,
     name: String,
+    startEnabled: Boolean,
     onStart: () -> Unit,
     onMove: (Long) -> Unit,
     onComplete: () -> Unit,
@@ -358,7 +361,7 @@ private fun ScheduledWorkoutCard(
                 TextButton(onClick = onRemove) { Text("Remove") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onStart, enabled = scheduled.status != "COMPLETED" && scheduled.status != "STARTED", modifier = Modifier.weight(1f)) {
+                Button(onClick = onStart, enabled = startEnabled && scheduled.status != "COMPLETED" && scheduled.status != "STARTED", modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Text("Start")
                 }

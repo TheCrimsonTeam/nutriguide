@@ -63,6 +63,8 @@ class AppViewModel(
         private set
     var errorMessage: String? = null
         private set
+    var isLaunchingRoutine: Boolean = false
+        private set
 
     init {
         viewModelScope.launch { nutrition.meals().collectLatest { meals = it; refresh() } }
@@ -308,54 +310,101 @@ class AppViewModel(
         viewModelScope.launch { training.deleteScheduledWorkout(id) }
     }
 
-    fun startRoutine(routineId: String) {
-        viewModelScope.launch { launchRoutine(routineId, null) }
-    }
-
-    fun startScheduledWorkout(id: String) {
+    fun startRoutine(routineId: String, onReady: () -> Unit = {}) {
+        if (!beginRoutineLaunch()) return
         viewModelScope.launch {
-            val scheduled = training.getScheduledWorkout(id) ?: return@launch
-            if (scheduled.status == "COMPLETED") return@launch
-            launchRoutine(scheduled.routineId, scheduled)
+            try {
+                if (launchRoutine(routineId, null)) onReady()
+            } catch (e: Exception) {
+                errorMessage = "Couldn't start this routine. Your saved plan has not been changed."
+                refresh()
+            } finally {
+                isLaunchingRoutine = false
+                refresh()
+            }
         }
     }
 
-    private suspend fun launchRoutine(routineId: String, scheduled: ScheduledWorkoutEntity?) {
-        val routine = training.getRoutine(routineId) ?: return
+    fun startScheduledWorkout(id: String, onReady: () -> Unit = {}) {
+        if (!beginRoutineLaunch()) return
+        viewModelScope.launch {
+            try {
+                val scheduled = training.getScheduledWorkout(id)
+                if (scheduled == null || scheduled.status != "PLANNED") {
+                    errorMessage = "This scheduled session is no longer available to start."
+                    refresh()
+                    return@launch
+                }
+                if (launchRoutine(scheduled.routineId, scheduled)) onReady()
+            } catch (e: Exception) {
+                errorMessage = "Couldn't start this scheduled session. Try again."
+                refresh()
+            } finally {
+                isLaunchingRoutine = false
+                refresh()
+            }
+        }
+    }
+
+    private fun beginRoutineLaunch(): Boolean {
+        if (isLaunchingRoutine) return false
+        if (activeWorkoutId != null) {
+            errorMessage = "Finish the active workout before starting another routine."
+            refresh()
+            return false
+        }
+        isLaunchingRoutine = true
+        errorMessage = null
+        refresh()
+        return true
+    }
+
+    private suspend fun launchRoutine(
+        routineId: String,
+        scheduled: ScheduledWorkoutEntity?
+    ): Boolean {
+        val routine = training.getRoutine(routineId)
+        if (routine == null) {
+            errorMessage = "This routine no longer exists."
+            refresh()
+            return false
+        }
         val planItems = training.routineExercises(routine.id)
         if (planItems.isEmpty()) {
             errorMessage = "This routine has no exercises yet. Edit it to add movements."
             refresh()
-            return
+            return false
         }
         val workout = WorkoutEntity(
             name = routine.name,
             runningSinceElapsedRealtime = SystemClock.elapsedRealtime()
         )
-        activateWorkout(workout, scheduled?.id)
-        training.createWorkout(workout)
-        planItems.forEach { item ->
-            training.addExercise(
-                WorkoutEntryEntity(
-                    workoutId = workout.id,
-                    exerciseId = item.exerciseId,
-                    exerciseName = item.exerciseName,
-                    category = item.category,
-                    trackingType = item.trackingType,
-                    sortOrder = item.sortOrder,
-                    plannedSets = item.targetSets,
-                    targetReps = item.targetReps,
-                    targetWeightKg = item.targetWeightKg,
-                    restSeconds = item.restSeconds,
-                    targetDurationSeconds = item.targetDurationSeconds,
-                    targetDistanceMeters = item.targetDistanceMeters,
-                    notes = item.notes
-                )
+        val entries = planItems.map { item ->
+            WorkoutEntryEntity(
+                workoutId = workout.id,
+                exerciseId = item.exerciseId,
+                exerciseName = item.exerciseName,
+                category = item.category,
+                trackingType = item.trackingType,
+                sortOrder = item.sortOrder,
+                plannedSets = item.targetSets,
+                targetReps = item.targetReps,
+                targetWeightKg = item.targetWeightKg,
+                restSeconds = item.restSeconds,
+                targetDurationSeconds = item.targetDurationSeconds,
+                targetDistanceMeters = item.targetDistanceMeters,
+                notes = item.notes
             )
         }
-        scheduled?.let {
-            training.updateScheduledWorkout(it.copy(status = "STARTED", completedWorkoutId = workout.id))
+        val created = training.createRoutineWorkout(workout, entries, scheduled?.id)
+        if (!created) {
+            errorMessage = "This scheduled session was already started or removed."
+            refresh()
+            return false
         }
+        // Activate and navigate only after workout + ordered entries are durably committed.
+        activateWorkout(workout, scheduled?.id)
+        return true
     }
 
     private fun recoverWorkout(saved: WorkoutEntity) {

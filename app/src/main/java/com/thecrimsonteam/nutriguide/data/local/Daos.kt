@@ -69,6 +69,12 @@ interface WorkoutDao {
     @Query("SELECT * FROM scheduled_workouts WHERE id = :id LIMIT 1")
     suspend fun getScheduledWorkout(id: String): ScheduledWorkoutEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM scheduled_workouts WHERE routineId = :routineId AND scheduledDay = :scheduledDay)")
+    suspend fun hasScheduledWorkout(routineId: String, scheduledDay: Long): Boolean
+
+    @Query("UPDATE scheduled_workouts SET status = 'STARTED', completedWorkoutId = :workoutId WHERE id = :scheduledId AND status = 'PLANNED'")
+    suspend fun claimScheduledWorkout(scheduledId: String, workoutId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertScheduledWorkout(item: ScheduledWorkoutEntity)
 
@@ -83,6 +89,9 @@ interface WorkoutDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEntry(entry: WorkoutEntryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEntries(entries: List<WorkoutEntryEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSet(set: WorkoutSetEntity)

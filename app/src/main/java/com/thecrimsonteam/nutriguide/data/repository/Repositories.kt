@@ -43,6 +43,11 @@ interface TrainingRepository {
     fun entries(workoutId: String): Flow<List<WorkoutEntryEntity>>
     fun sets(entryId: String): Flow<List<WorkoutSetEntity>>
     suspend fun createWorkout(workout: WorkoutEntity)
+    suspend fun createRoutineWorkout(
+        workout: WorkoutEntity,
+        entries: List<WorkoutEntryEntity>,
+        scheduledWorkoutId: String? = null
+    ): Boolean
     suspend fun getWorkout(id: String): WorkoutEntity?
     suspend fun updateWorkout(workout: WorkoutEntity)
     suspend fun addExercise(entry: WorkoutEntryEntity)
@@ -72,6 +77,18 @@ class LocalTrainingRepository(
     override fun entries(workoutId: String) = dao.observeEntries(workoutId)
     override fun sets(entryId: String) = dao.observeSets(entryId)
     override suspend fun createWorkout(workout: WorkoutEntity) = dao.insertWorkout(workout)
+    override suspend fun createRoutineWorkout(
+        workout: WorkoutEntity,
+        entries: List<WorkoutEntryEntity>,
+        scheduledWorkoutId: String?
+    ): Boolean = database.withTransaction {
+        if (scheduledWorkoutId != null && dao.claimScheduledWorkout(scheduledWorkoutId, workout.id) != 1) {
+            return@withTransaction false
+        }
+        dao.insertWorkout(workout)
+        if (entries.isNotEmpty()) dao.insertEntries(entries)
+        true
+    }
     override suspend fun getWorkout(id: String) = dao.getWorkout(id)
     override suspend fun updateWorkout(workout: WorkoutEntity) = dao.updateWorkout(workout)
     override suspend fun addExercise(entry: WorkoutEntryEntity) = dao.insertEntry(entry)
@@ -94,7 +111,13 @@ class LocalTrainingRepository(
     override suspend fun deleteRoutine(id: String) = dao.deleteRoutine(id)
     override fun scheduledWorkouts() = dao.observeScheduledWorkouts()
     override suspend fun getScheduledWorkout(id: String) = dao.getScheduledWorkout(id)
-    override suspend fun scheduleWorkout(item: ScheduledWorkoutEntity) = dao.insertScheduledWorkout(item)
+    override suspend fun scheduleWorkout(item: ScheduledWorkoutEntity) {
+        database.withTransaction {
+            if (!dao.hasScheduledWorkout(item.routineId, item.scheduledDay)) {
+                dao.insertScheduledWorkout(item)
+            }
+        }
+    }
     override suspend fun updateScheduledWorkout(item: ScheduledWorkoutEntity) = dao.updateScheduledWorkout(item)
     override suspend fun deleteScheduledWorkout(id: String) = dao.deleteScheduledWorkout(id)
 }
