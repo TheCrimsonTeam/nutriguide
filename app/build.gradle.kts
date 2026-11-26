@@ -17,7 +17,11 @@ val foodAnalysisBaseUrl = providers.gradleProperty("FOOD_ANALYSIS_BASE_URL")
 
 android {
     namespace = "com.thecrimsonteam.nutriguide"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         applicationId = "com.thecrimsonteam.nutriguide"
