@@ -53,15 +53,14 @@ Versions were selected against the official Android, Kotlin and Gradle release d
 ## Build locally
 
 1. Install Android Studio with Android SDK Platform 37 and JDK 17.
-2. Install Gradle 9.6.0, or configure Android Studio to use that Gradle version.
-3. Open this repository in Android Studio and allow Gradle sync.
-4. Copy `local.properties.example` to `local.properties` and optionally set `FOOD_ANALYSIS_BASE_URL`.
-5. Build and test:
+2. Open this repository in Android Studio and allow Gradle sync. The checked-in Gradle Wrapper downloads the pinned Gradle 9.6.0 distribution on first use.
+3. Copy `local.properties.example` to `local.properties` and optionally set `FOOD_ANALYSIS_BASE_URL`.
+4. Build and test:
 
 ```bash
-gradle testDebugUnitTest
-gradle lintDebug
-gradle assembleDebug
+./gradlew testDebugUnitTest
+./gradlew lintDebug
+./gradlew assembleDebug
 ```
 
 The debug APK is generated at:
@@ -70,7 +69,7 @@ The debug APK is generated at:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-This repository currently does not include a Gradle Wrapper JAR. CI installs Gradle 9.6.0 directly using `gradle/actions/setup-gradle`. Do not run wrapper commands until the wrapper JAR has been generated using a verified Gradle 9.6.0 installation.
+The Gradle Wrapper JAR and launch scripts are pinned from the official Gradle `v9.6.0` source. CI uses the same wrapper so local and automated builds use the same Gradle distribution.
 
 ## Food analysis backend configuration
 
