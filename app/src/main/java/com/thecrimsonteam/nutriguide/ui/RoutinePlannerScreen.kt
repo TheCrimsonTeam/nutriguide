@@ -46,6 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -57,7 +58,6 @@ import com.thecrimsonteam.nutriguide.data.local.WorkoutRoutineEntity
 import com.thecrimsonteam.nutriguide.domain.model.RoutineExercisePlan
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @Composable
 fun RoutinePlannerScreen(
@@ -74,6 +74,7 @@ fun RoutinePlannerScreen(
     var exerciseQuery by rememberSaveable { mutableStateOf("") }
     val selectedPlans = remember { mutableStateListOf<RoutineExercisePlan>() }
     val today = remember { LocalDate.now() }
+    val currentLocale = LocalLocale.current.platformLocale
     var selectedDay by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
     var selectedRoutineId by rememberSaveable { mutableStateOf("") }
 
@@ -233,7 +234,7 @@ fun RoutinePlannerScreen(
                 (0L..6L).forEach { offset ->
                     val day = today.plusDays(offset)
                     FilterChip(selected = selectedDay == day.toEpochDay(), onClick = { selectedDay = day.toEpochDay() }, label = {
-                        Text(day.format(DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())))
+                        Text(day.format(DateTimeFormatter.ofPattern("EEE d", currentLocale)))
                     })
                 }
             }
