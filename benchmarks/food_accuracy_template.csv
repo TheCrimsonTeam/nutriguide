@@ -1,0 +1,1 @@
+meal_id,expected_food,predicted_food,reference_grams,predicted_grams,reference_kcal,predicted_kcal,reference_protein_g,predicted_protein_g,reference_carbs_g,predicted_carbs_g,reference_fat_g,predicted_fat_g

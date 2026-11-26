@@ -1,0 +1,18 @@
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+
+# Local secrets / signing
+.env
+.env.*
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# Generated Room schemas
+app/schemas/
