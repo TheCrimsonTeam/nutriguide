@@ -1,3 +1,5 @@
 # Copy to local.properties and set a trusted backend endpoint.
 # Never put AI provider credentials or USDA API keys in this file or the Android app.
 FOOD_ANALYSIS_BASE_URL=https://YOUR_BACKEND_HOST/
+# Private-beta backend gate only; this token is extractable from the APK.
+FOOD_ANALYSIS_CLIENT_TOKEN=

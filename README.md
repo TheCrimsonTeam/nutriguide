@@ -2,7 +2,7 @@
 
 NutriGuide is a native Android app focused on two things: food photo-assisted meal logging and a broad exercise library with workout tracking. The first development slice prioritises local-first logging, reviewable nutrition values, and a modular architecture.
 
-> **Status (26 November 2026):** Initial Android source and Figma screen system are committed on `develop`. The project is not yet a production release. Photo capture and gallery selection are implemented; remote food analysis is deliberately disabled until a secure backend is configured. A debug APK has not yet been built or verified in this environment.
+> **Status (26 November 2026):** Initial Android source and Figma screen system are committed on `develop`. The project is not yet a production release. Photo capture, gallery selection, reviewable food drafts, edge-to-edge layout handling and a server-side food-analysis implementation are present. The backend still requires deployment and provider credentials before live scanning is available.
 
 ## Product scope
 
@@ -54,7 +54,7 @@ Versions were selected against the official Android, Kotlin and Gradle release d
 
 1. Install Android Studio with Android SDK Platform 37.1 and JDK 17.
 2. Open this repository in Android Studio and allow Gradle sync. The checked-in Gradle Wrapper downloads the pinned Gradle 9.6.0 distribution on first use.
-3. Copy `local.properties.example` to `local.properties` and optionally set `FOOD_ANALYSIS_BASE_URL`.
+3. Copy `local.properties.example` to `local.properties`; set `FOOD_ANALYSIS_BASE_URL` and the private-beta `FOOD_ANALYSIS_CLIENT_TOKEN` when the backend is deployed.
 4. Build and test:
 
 ```bash
@@ -75,32 +75,21 @@ The Gradle Wrapper JAR and launch scripts are pinned from the official Gradle `v
 
 ## Food analysis backend configuration
 
-The Android client calls `POST {FOOD_ANALYSIS_BASE_URL}/food-analysis` as multipart form data with a `photo` field. The response contract is:
+A FastAPI service lives in `backend/`. It uses a vision-capable OpenAI Responses model to identify visible food components and estimate portions; it does not ask the model to supply calories or macros. A separate USDA FoodData Central lookup returns candidate records with FDC IDs and per-100-gram nutrient values. The app lets the user choose a candidate and calculates nutrients from the selected record and reviewed serving weight.
 
-```json
-{
-  "items": [
-    {
-      "name": "Steamed rice",
-      "portionGrams": 150,
-      "confidence": 0.82,
-      "caloriesKcal": null,
-      "proteinG": null,
-      "carbsG": null,
-      "fatG": null,
-      "nutritionSource": null
-    }
-  ],
-  "message": "Review the food and serving estimate.",
-  "requiresUserConfirmation": true
-}
-```
+### Configure the service
 
-The nullable nutrient fields are intentional. A vision model may identify a food and estimate a visible portion, but it must not invent a nutrition value. A trusted backend should resolve candidate foods against a licensed composition source, return provenance, and leave a value blank when the match is uncertain.
+1. Install Python 3.12 or later.
+2. In `backend/`, create a virtual environment, install `requirements-dev.txt`, and copy `.env.example` to `.env`.
+3. Set server-side `OPENAI_API_KEY`, `USDA_API_KEY` and a random `NUTRIGUIDE_CLIENT_TOKEN` (at least 32 characters). The vision model defaults to `gpt-6.2-sol`; override using `OPENAI_VISION_MODEL`.
+4. Run `uvicorn app.main:app --host 0.0.0.0 --port 8080` from `backend/`.
+5. Set `FOOD_ANALYSIS_BASE_URL` and `FOOD_ANALYSIS_CLIENT_TOKEN` in uncommitted Android `local.properties`. Use HTTPS outside localhost.
 
-**Never put an AI API key, USDA API key, service-role key or other server secret in Android resources, Gradle BuildConfig, local.properties committed to Git, or the repository.** Store provider credentials in the backend's secret manager. The current app does not implement account authentication or sync, so do not expose a public analysis endpoint to untrusted traffic. Configure user authentication, authorization and per-user quotas before enabling analysis.
+The shared token is a temporary private-beta request gate, not production authentication: it is embedded in the APK and can be extracted. Before public release, put the endpoint behind verified Android attestation or short-lived authenticated-user tokens at a trusted gateway, with shared rate limits. Never put `OPENAI_API_KEY` or `USDA_API_KEY` in Android configuration or the repository.
 
-See [data sources and licensing](docs/data-sources-and-licensing.md) and [nutrition accuracy protocol](docs/nutrition-accuracy.md).
+Images are size-limited, EXIF-oriented, resized and recompressed in memory; the backend does not store photos. Responses are schema-validated. Candidate values are sourced from USDA and remain unknown when no match or nutrient is available. Similarity scores rank text matches but are not confidence probabilities. USDA FoodData Central is CC0 1.0; the app displays source information.
+
+See `backend/README.md`, [USDA API guide](https://fdc.nal.usda.gov/api-guide/), [OpenAI image input guide](https://developers.openai.com/api/docs/guides/images-vision), [data sources and licensing](docs/data-sources-and-licensing.md), and [nutrition accuracy protocol](docs/nutrition-accuracy.md).
 
 ## Git workflow
 
