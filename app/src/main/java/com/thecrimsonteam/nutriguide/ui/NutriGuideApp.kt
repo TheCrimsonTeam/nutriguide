@@ -459,7 +459,6 @@ private fun FoodReviewScreen(
 }
 
 @Composable
-@Composable
 private fun FoodDraftCard(draft: FoodDraft, onChange: (FoodDraft) -> Unit, onRemove: () -> Unit) {
     Column(Modifier.fillMaxWidth()) {
         Card {
