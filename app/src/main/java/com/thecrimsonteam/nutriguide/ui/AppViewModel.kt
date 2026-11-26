@@ -16,6 +16,7 @@ import com.thecrimsonteam.nutriguide.data.repository.NutritionRepository
 import com.thecrimsonteam.nutriguide.data.repository.TrainingRepository
 import com.thecrimsonteam.nutriguide.data.catalog.ExerciseDefinition
 import com.thecrimsonteam.nutriguide.domain.model.FoodDraft
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
@@ -57,6 +58,7 @@ class AppViewModel(
     }
 
     private val observers = mutableSetOf<() -> Unit>()
+    private var activeEntriesJob: Job? = null
     fun observe(observer: () -> Unit) { observers += observer }
     fun removeObserver(observer: () -> Unit) { observers -= observer }
     private fun refresh() { observers.toList().forEach { it() } }
@@ -152,12 +154,13 @@ class AppViewModel(
     fun deleteMeal(mealId: String) { viewModelScope.launch { nutrition.deleteMeal(mealId) } }
 
     fun startWorkout(name: String = "Workout") {
+        activeEntriesJob?.cancel()
         val workout = WorkoutEntity(name = name.ifBlank { "Workout" })
         activeWorkoutId = workout.id
         activeEntries = emptyList()
         setsByEntry = emptyMap()
         refresh()
-        viewModelScope.launch {
+        activeEntriesJob = viewModelScope.launch {
             training.createWorkout(workout)
             training.entries(workout.id).collectLatest { activeEntries = it; refresh() }
         }
@@ -173,7 +176,7 @@ class AppViewModel(
                     exerciseName = exercise.name,
                     category = exercise.category,
                     trackingType = exercise.trackingType,
-                    sortOrder = activeEntries.size
+                    sortOrder = (activeEntries.maxOfOrNull { it.sortOrder } ?: -1) + 1
                 )
             )
         }
@@ -237,6 +240,8 @@ class AppViewModel(
 
     fun finishWorkout() {
         val id = activeWorkoutId ?: return
+        activeEntriesJob?.cancel()
+        activeEntriesJob = null
         viewModelScope.launch {
             training.finishWorkout(id)
             activeWorkoutId = null

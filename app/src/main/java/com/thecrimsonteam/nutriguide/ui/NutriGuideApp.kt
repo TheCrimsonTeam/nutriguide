@@ -459,36 +459,38 @@ private fun FoodReviewScreen(
 }
 
 @Composable
+@Composable
 private fun FoodDraftCard(draft: FoodDraft, onChange: (FoodDraft) -> Unit, onRemove: () -> Unit) {
-    Card {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Food item", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                TextButton(onClick = onRemove) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remove food")
-                    Text("Remove")
+    Column(Modifier.fillMaxWidth()) {
+        Card {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Food item", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onRemove) {
+                        Icon(Icons.Default.Delete, contentDescription = "Remove food")
+                        Text("Remove")
+                    }
                 }
+                OutlinedTextField(draft.name, { onChange(draft.copy(name = it)) }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(
+                    draft.portionGrams.toString().removeSuffix(".0"),
+                    { value -> onChange(draft.copy(portionGrams = value.toDoubleOrNull() ?: 0.0)) },
+                    label = { Text("Serving (g)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
+                Text("Adjust estimated nutrients, or leave a value blank when unknown.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumberField(draft.caloriesKcal?.toString() ?: "", { onChange(draft.copy(caloriesKcal = it.toDoubleOrNull())) }, "Energy kcal", Modifier.weight(1f))
+                    NumberField(draft.proteinG?.toString() ?: "", { onChange(draft.copy(proteinG = it.toDoubleOrNull())) }, "Protein g", Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumberField(draft.carbsG?.toString() ?: "", { onChange(draft.copy(carbsG = it.toDoubleOrNull())) }, "Carbs g", Modifier.weight(1f))
+                    NumberField(draft.fatG?.toString() ?: "", { onChange(draft.copy(fatG = it.toDoubleOrNull())) }, "Fat g", Modifier.weight(1f))
+                }
+                draft.nutritionSource?.let { Text("Source: $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+                draft.confidence?.let { Text("Recognition confidence: ${(it * 100).toInt()}% — review this item.", style = MaterialTheme.typography.labelSmall) }
             }
-            OutlinedTextField(draft.name, { onChange(draft.copy(name = it)) }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(
-                draft.portionGrams.toString().removeSuffix(".0"),
-                { value -> onChange(draft.copy(portionGrams = value.toDoubleOrNull() ?: 0.0)) },
-                label = { Text("Serving (g)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-            )
-            Text(
-                "Energy: ${draft.caloriesKcal?.let { "%.0f kcal".format(it) } ?: "not available"} · Protein: ${draft.proteinG?.let { "%.1f g".format(it) } ?: "not available"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                "Carbohydrate: ${draft.carbsG?.let { "%.1f g".format(it) } ?: "not available"} · Fat: ${draft.fatG?.let { "%.1f g".format(it) } ?: "not available"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (draft.nutritionSource != null) Text("Source: ${draft.nutritionSource}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            draft.confidence?.let { Text("Recognition confidence: ${(it * 100).toInt()}% — review this item.", style = MaterialTheme.typography.labelSmall) }
         }
     }
 }
