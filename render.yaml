@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nutriguide-food-analysis
+    runtime: docker
+    branch: develop
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_VISION_MODEL
+        value: gpt-6.2-sol
+      - key: USDA_API_KEY
+        sync: false
+      - key: NUTRIGUIDE_CLIENT_TOKEN
+        generateValue: true
+      - key: MAX_UPLOAD_BYTES
+        value: "10485760"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "10"
+      - key: LOG_LEVEL
+        value: INFO

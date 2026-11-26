@@ -31,8 +31,8 @@ android {
         applicationId = "com.thecrimsonteam.nutriguide"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.4.0"
+        versionCode = 9
+        versionName = "0.4.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "FOOD_ANALYSIS_BASE_URL", "\"$foodAnalysisBaseUrl\"")
         buildConfigField("String", "FOOD_ANALYSIS_CLIENT_TOKEN", "\"$foodAnalysisClientToken\"")
