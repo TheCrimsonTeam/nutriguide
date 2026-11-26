@@ -117,9 +117,13 @@ fun ExerciseDemonstration(exercise: ExerciseDefinition) {
     var replayIndex by rememberSaveable(exercise.id) { mutableStateOf(0) }
     val progress = remember(exercise.id) { Animatable(0f) }
 
+    var lastReplayIndex by remember(exercise.id) { mutableStateOf(0) }
     LaunchedEffect(playing, replayIndex, reducedMotion) {
         if (playing && !reducedMotion) {
-            progress.snapTo(0f)
+            if (lastReplayIndex != replayIndex) {
+                progress.snapTo(0f)
+                lastReplayIndex = replayIndex
+            }
             while (true) {
                 progress.animateTo(
                     1f,
@@ -149,7 +153,7 @@ fun ExerciseDemonstration(exercise: ExerciseDefinition) {
                         contentDescription = "Monochrome animated demonstration of ${exercise.name}"
                     }
             ) {
-                drawExercisePose(pattern, progress.value)
+                drawExercisePose(pattern, progress.value, exercise.equipment)
             }
         }
         Row(
@@ -178,7 +182,7 @@ fun ExerciseDemonstration(exercise: ExerciseDefinition) {
     }
 }
 
-private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgress: Float) {
+private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgress: Float, equipment: String) {
     val w = size.width
     val h = size.height
     val cx = w * 0.5f
@@ -187,6 +191,9 @@ private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgre
     val stroke = (size.minDimension * 0.026f).coerceAtLeast(4f)
     val ink = Color(0xFFF4F4F4)
     val muted = Color(0xFF777777)
+    val equipmentLabel = equipment.lowercase()
+    val hasBarbellLikeEquipment = listOf("barbell", "smith", "plate-loaded", "cable", "machine").any(equipmentLabel::contains)
+    val hasHandWeights = listOf("dumbbell", "kettlebell", "weight plate").any(equipmentLabel::contains)
 
     drawLine(muted, Offset(w * 0.12f, h * 0.91f), Offset(w * 0.88f, h * 0.91f), strokeWidth = stroke * 0.45f)
     fun segment(a: Offset, b: Offset, width: Float = stroke) {
@@ -226,7 +233,7 @@ private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgre
             elbowR = Offset(cx + w * 0.20f, shoulder.y + h * 0.01f)
             wristL = Offset(cx - w * 0.29f, shoulder.y - h * 0.01f)
             wristR = Offset(cx + w * 0.29f, shoulder.y - h * 0.01f)
-            equipmentBar = Offset(cx, shoulder.y - h * 0.04f)
+            equipmentBar = if (hasBarbellLikeEquipment) Offset(cx, shoulder.y - h * 0.04f) else null
         }
         ExerciseMotionPattern.HINGE -> {
             hip = Offset(cx + w * 0.025f, h * 0.59f)
@@ -238,7 +245,7 @@ private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgre
             wristR = Offset(cx + w * 0.01f, h * (0.72f + 0.03f * pulse))
             kneeL = Offset(cx - w * 0.10f, h * 0.74f)
             kneeR = Offset(cx + w * 0.10f, h * 0.74f)
-            equipmentBar = Offset(cx - w * 0.06f, h * 0.79f)
+            equipmentBar = if (hasBarbellLikeEquipment) Offset(cx - w * 0.06f, h * 0.79f) else null
         }
         ExerciseMotionPattern.LUNGE -> {
             hip = Offset(cx, h * (0.57f + 0.045f * pulse))
@@ -279,7 +286,7 @@ private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgre
             elbowR = Offset(cx + w * (0.17f - 0.07f * pulse), h * (0.48f - 0.02f * pulse))
             wristL = Offset(cx - w * (0.20f - 0.10f * pulse), h * (0.58f - 0.10f * pulse))
             wristR = Offset(cx + w * (0.20f - 0.10f * pulse), h * (0.58f - 0.10f * pulse))
-            if (pattern == ExerciseMotionPattern.ROW) equipmentBar = Offset(cx, h * 0.55f)
+            if (pattern == ExerciseMotionPattern.ROW && hasBarbellLikeEquipment) equipmentBar = Offset(cx, h * 0.55f)
         }
         ExerciseMotionPattern.CURL -> {
             elbowL = Offset(cx - w * 0.12f, h * 0.52f)
@@ -361,5 +368,17 @@ private fun DrawScope.drawExercisePose(pattern: ExerciseMotionPattern, rawProgre
         segment(Offset(bar.x - w * 0.24f, bar.y), Offset(bar.x + w * 0.24f, bar.y), stroke * 0.72f)
         drawCircle(ink, stroke * 1.15f, Offset(bar.x - w * 0.25f, bar.y))
         drawCircle(ink, stroke * 1.15f, Offset(bar.x + w * 0.25f, bar.y))
+    }
+    if (hasHandWeights) {
+        listOf(wristL, wristR).forEach { hand ->
+            drawCircle(ink, stroke * 1.4f, hand)
+            drawLine(
+                muted,
+                Offset(hand.x - stroke * 1.8f, hand.y),
+                Offset(hand.x + stroke * 1.8f, hand.y),
+                strokeWidth = stroke * 0.65f,
+                cap = StrokeCap.Round
+            )
+        }
     }
 }
