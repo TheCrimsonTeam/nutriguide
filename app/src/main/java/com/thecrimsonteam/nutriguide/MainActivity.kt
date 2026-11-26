@@ -2,6 +2,7 @@ package com.thecrimsonteam.nutriguide
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
@@ -19,6 +20,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Draw behind transparent system bars; Compose owns safe-area spacing.
+        enableEdgeToEdge()
 
         val database = Room.databaseBuilder(
             applicationContext,

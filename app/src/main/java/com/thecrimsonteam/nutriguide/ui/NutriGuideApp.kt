@@ -8,6 +8,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -141,12 +148,16 @@ fun NutriGuideApp(viewModel: AppViewModel) {
 
     NutriGuideTheme(mode = themeMode) {
         Scaffold(
+            // Keep content clear of status/navigation bars, cutouts and the IME.
+            contentWindowInsets = WindowInsets.safeDrawing.union(WindowInsets.ime),
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 if (route != "camera") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            // The custom app header does not inherit TopAppBar's inset handling.
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
                             .padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -189,6 +200,8 @@ fun NutriGuideApp(viewModel: AppViewModel) {
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
+                            // Keep the floating navigation surface above gesture and button navigation.
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         shape = RoundedCornerShape(26.dp),
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
