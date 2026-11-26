@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -184,7 +185,7 @@ fun IntervalTimerScreen(onBack: () -> Unit) {
                 enabled = running && phase != "COMPLETE",
                 modifier = Modifier.weight(1f)
             ) { Text("Skip phase") }
-            OutlinedButton(onClick = ::resetPlan) { Text("Reset") }
+            OutlinedButton(onClick = { resetPlan() }) { Text("Reset") }
         }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back to workouts") }
         Text(
