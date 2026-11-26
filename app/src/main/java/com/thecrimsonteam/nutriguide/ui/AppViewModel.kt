@@ -20,6 +20,7 @@ import com.thecrimsonteam.nutriguide.data.repository.NutritionRepository
 import com.thecrimsonteam.nutriguide.data.repository.TrainingRepository
 import com.thecrimsonteam.nutriguide.data.catalog.ExerciseDefinition
 import com.thecrimsonteam.nutriguide.domain.model.FoodDraft
+import com.thecrimsonteam.nutriguide.domain.model.RoutineExercisePlan
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
@@ -232,7 +233,7 @@ class AppViewModel(
         id: String?,
         name: String,
         description: String,
-        selectedExercises: List<ExerciseDefinition>
+        selectedExercises: List<RoutineExercisePlan>
     ) {
         viewModelScope.launch {
             if (name.isBlank() || selectedExercises.isEmpty()) {
@@ -252,22 +253,22 @@ class AppViewModel(
                 createdAt = previous?.createdAt ?: now,
                 updatedAt = now
             )
-            val entries = selectedExercises.distinctBy { it.id }.mapIndexed { index, exercise ->
-                val old = previousByExercise[exercise.id]
+            val entries = selectedExercises.distinctBy { it.exerciseId }.mapIndexed { index, item ->
+                val old = previousByExercise[item.exerciseId]
                 RoutineExerciseEntity(
                     routineId = routineId,
-                    exerciseId = exercise.id,
-                    exerciseName = exercise.name,
-                    category = exercise.category,
-                    trackingType = exercise.trackingType,
+                    exerciseId = item.exerciseId,
+                    exerciseName = item.exerciseName,
+                    category = item.category,
+                    trackingType = item.trackingType,
                     sortOrder = index,
-                    targetSets = old?.targetSets ?: if (exercise.trackingType == "CARDIO" || exercise.trackingType == "DURATION") 1 else 3,
-                    targetReps = old?.targetReps ?: 8,
-                    targetWeightKg = old?.targetWeightKg,
-                    restSeconds = old?.restSeconds ?: 60,
-                    targetDurationSeconds = old?.targetDurationSeconds,
-                    targetDistanceMeters = old?.targetDistanceMeters,
-                    notes = old?.notes.orEmpty()
+                    targetSets = item.targetSets,
+                    targetReps = item.targetReps,
+                    targetWeightKg = item.targetWeightKg,
+                    restSeconds = item.restSeconds,
+                    targetDurationSeconds = item.targetDurationSeconds,
+                    targetDistanceMeters = item.targetDistanceMeters,
+                    notes = item.notes
                 )
             }
             training.saveRoutine(routine, entries)
@@ -281,6 +282,7 @@ class AppViewModel(
     }
 
     suspend fun routineExercises(id: String): List<RoutineExerciseEntity> = training.routineExercises(id)
+    suspend fun getRoutine(id: String): WorkoutRoutineEntity? = training.getRoutine(id)
 
     fun scheduleRoutine(routineId: String, day: Long) {
         viewModelScope.launch {
@@ -306,38 +308,53 @@ class AppViewModel(
         viewModelScope.launch { training.deleteScheduledWorkout(id) }
     }
 
+    fun startRoutine(routineId: String) {
+        viewModelScope.launch { launchRoutine(routineId, null) }
+    }
+
     fun startScheduledWorkout(id: String) {
         viewModelScope.launch {
             val scheduled = training.getScheduledWorkout(id) ?: return@launch
             if (scheduled.status == "COMPLETED") return@launch
-            val routine = training.getRoutine(scheduled.routineId) ?: return@launch
-            val planItems = training.routineExercises(routine.id)
-            val workout = WorkoutEntity(
-                name = routine.name,
-                runningSinceElapsedRealtime = SystemClock.elapsedRealtime()
-            )
-            activateWorkout(workout, scheduled.id)
-            training.createWorkout(workout)
-            planItems.forEach { item ->
-                training.addExercise(
-                    WorkoutEntryEntity(
-                        workoutId = workout.id,
-                        exerciseId = item.exerciseId,
-                        exerciseName = item.exerciseName,
-                        category = item.category,
-                        trackingType = item.trackingType,
-                        sortOrder = item.sortOrder,
-                        plannedSets = item.targetSets,
-                        targetReps = item.targetReps,
-                        targetWeightKg = item.targetWeightKg,
-                        restSeconds = item.restSeconds,
-                        targetDurationSeconds = item.targetDurationSeconds,
-                        targetDistanceMeters = item.targetDistanceMeters,
-                        notes = item.notes
-                    )
+            launchRoutine(scheduled.routineId, scheduled)
+        }
+    }
+
+    private suspend fun launchRoutine(routineId: String, scheduled: ScheduledWorkoutEntity?) {
+        val routine = training.getRoutine(routineId) ?: return
+        val planItems = training.routineExercises(routine.id)
+        if (planItems.isEmpty()) {
+            errorMessage = "This routine has no exercises yet. Edit it to add movements."
+            refresh()
+            return
+        }
+        val workout = WorkoutEntity(
+            name = routine.name,
+            runningSinceElapsedRealtime = SystemClock.elapsedRealtime()
+        )
+        activateWorkout(workout, scheduled?.id)
+        training.createWorkout(workout)
+        planItems.forEach { item ->
+            training.addExercise(
+                WorkoutEntryEntity(
+                    workoutId = workout.id,
+                    exerciseId = item.exerciseId,
+                    exerciseName = item.exerciseName,
+                    category = item.category,
+                    trackingType = item.trackingType,
+                    sortOrder = item.sortOrder,
+                    plannedSets = item.targetSets,
+                    targetReps = item.targetReps,
+                    targetWeightKg = item.targetWeightKg,
+                    restSeconds = item.restSeconds,
+                    targetDurationSeconds = item.targetDurationSeconds,
+                    targetDistanceMeters = item.targetDistanceMeters,
+                    notes = item.notes
                 )
-            }
-            training.updateScheduledWorkout(scheduled.copy(status = "STARTED", completedWorkoutId = workout.id))
+            )
+        }
+        scheduled?.let {
+            training.updateScheduledWorkout(it.copy(status = "STARTED", completedWorkoutId = workout.id))
         }
     }
 
