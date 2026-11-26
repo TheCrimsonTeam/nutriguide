@@ -7,7 +7,7 @@ NutriGuide is a native Android app focused on two things: food photo-assisted me
 ## Product scope
 
 - **Nutrition:** CameraX capture, Android Photo Picker, editable food components, meal types, local diary and meal details. Unknown values remain unknown rather than being guessed.
-- **Workouts:** 100+ built-in catalogue entries spanning free weights, machines, calisthenics, home training, cardio, mobility and warm-ups; search and category filters; custom exercises; workout and set logging.
+- **Workouts:** 280+ built-in catalogue entries spanning free weights, machines, calisthenics, home training, cardio, mobility and warm-ups; search and category filters; custom exercises; workout and set logging.
 - **Appearance:** Material 3 light, dark and system themes.
 - **Offline:** Meal/workout records use Room and are stored on-device. No cloud sync is currently enabled.
 

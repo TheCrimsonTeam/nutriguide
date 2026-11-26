@@ -393,6 +393,15 @@ private fun FoodReviewScreen(
         Text("Food components", style = MaterialTheme.typography.titleLarge)
         if (viewModel.foodDrafts.isEmpty()) {
             EmptyCard("No confirmed foods yet", "Add each visible food below. Leave a nutrient field blank when you do not know its value.")
+        } else {
+            val drafts = viewModel.foodDrafts
+            InfoCard(
+                "Estimated meal total",
+                "Energy: ${completeTotal(drafts.map { it.caloriesKcal })?.let { "%.0f kcal".format(it) } ?: "incomplete"} · " +
+                    "Protein: ${completeTotal(drafts.map { it.proteinG })?.let { "%.1f g".format(it) } ?: "incomplete"} · " +
+                    "Carbohydrate: ${completeTotal(drafts.map { it.carbsG })?.let { "%.1f g".format(it) } ?: "incomplete"} · " +
+                    "Fat: ${completeTotal(drafts.map { it.fatG })?.let { "%.1f g".format(it) } ?: "incomplete"}"
+            )
         }
         viewModel.foodDrafts.forEach { draft ->
             FoodDraftCard(draft = draft, onChange = viewModel::updateDraft, onRemove = { viewModel.removeDraft(draft.id) })
@@ -497,17 +506,31 @@ private fun MealDiaryScreen(
         if (meals.isEmpty()) {
             EmptyCard("No meals yet", "Meals you save will be organised here by date and meal type.")
         } else {
+            val groupedMeals = meals.groupBy { dayKey(it.createdAt) }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(meals, key = { it.id }) { meal ->
-                    Card {
-                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f).clickable { onMeal(meal.id) }) {
-                                Text(meal.mealType, style = MaterialTheme.typography.titleMedium)
-                                Text(formatDate(meal.createdAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            TextButton(onClick = { onMeal(meal.id) }) { Text("View") }
-                            IconButton(onClick = { onDelete(meal.id) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete meal")
+                groupedMeals.forEach { (day, dayMeals) ->
+                    item(key = "day-$day") {
+                        Text(
+                            formatDay(dayMeals.first().createdAt),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
+                    items(dayMeals, key = { it.id }) { meal ->
+                        Card {
+                            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f).clickable { onMeal(meal.id) }) {
+                                    Text(meal.mealType, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(meal.createdAt)),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                TextButton(onClick = { onMeal(meal.id) }) { Text("View") }
+                                IconButton(onClick = { onDelete(meal.id) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete meal")
+                                }
                             }
                         }
                     }
@@ -552,6 +575,13 @@ private fun MealDetailScreen(
                     }
                 }
             }
+            InfoCard(
+                "Meal totals",
+                "Energy: ${completeTotal(items.map { it.caloriesKcal })?.let { "%.0f kcal".format(it) } ?: "incomplete"} · " +
+                    "Protein: ${completeTotal(items.map { it.proteinG })?.let { "%.1f g".format(it) } ?: "incomplete"} · " +
+                    "Carbohydrate: ${completeTotal(items.map { it.carbsG })?.let { "%.1f g".format(it) } ?: "incomplete"} · " +
+                    "Fat: ${completeTotal(items.map { it.fatG })?.let { "%.1f g".format(it) } ?: "incomplete"}"
+            )
         }
     }
 }
@@ -953,6 +983,17 @@ private fun com.thecrimsonteam.nutriguide.data.local.CustomExerciseEntity.toDefi
         aliases = aliases.split("|"),
         instructions = instructions
     )
+
+private fun completeTotal(values: List<Double?>): Double? {
+    if (values.isEmpty() || values.any { it == null }) return null
+    return values.sumOf { it ?: 0.0 }
+}
+
+private fun dayKey(time: Long): String =
+    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(time))
+
+private fun formatDay(time: Long): String =
+    SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(time))
 
 private fun formatDate(time: Long): String =
     SimpleDateFormat("dd MMM yyyy · HH:mm", Locale.getDefault()).format(Date(time))

@@ -77,6 +77,7 @@ class AppViewModel(
             val api = foodApi
             if (api == null) {
                 analysisMessage = "Photo analysis is not connected yet. You can still add the foods and confirm their nutrition manually."
+                deleteTemporaryCameraPhoto(context, uri)
                 isAnalyzing = false
                 refresh()
                 return@launch
@@ -110,8 +111,21 @@ class AppViewModel(
             } catch (e: Exception) {
                 analysisMessage = "We couldn't analyse this photo: ${e.message ?: "service unavailable"}. You can enter the meal manually."
             } finally {
+                deleteTemporaryCameraPhoto(context, uri)
                 isAnalyzing = false
                 refresh()
+            }
+        }
+    }
+
+    private fun deleteTemporaryCameraPhoto(context: Context, uri: Uri) {
+        if (uri.scheme != "file") return
+        val path = uri.path ?: return
+        runCatching {
+            val file = java.io.File(path).canonicalFile
+            val cacheRoot = context.cacheDir.canonicalFile
+            if (file.path.startsWith(cacheRoot.path + java.io.File.separator)) {
+                file.delete()
             }
         }
     }
@@ -124,7 +138,8 @@ class AppViewModel(
                 refresh()
                 return@launch
             }
-            val meal = MealEntity(mealType = mealType, imageUri = imageUri)
+            // Raw meal photos are not retained in the diary by default.
+            val meal = MealEntity(mealType = mealType, imageUri = null)
             nutrition.saveMeal(meal, cleaned.map { it.toEntity(meal.id) })
             foodDrafts = emptyList()
             analysisMessage = "Meal saved on this device."
