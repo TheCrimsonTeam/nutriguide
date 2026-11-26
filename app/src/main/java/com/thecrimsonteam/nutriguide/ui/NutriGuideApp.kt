@@ -960,6 +960,7 @@ private fun ExerciseDetailScreen(exercise: ExerciseDefinition?, onAdd: () -> Uni
             EmptyCard("Exercise not found", "Return to the catalogue and choose another item.")
         } else {
             Text(exercise.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            ExerciseDemonstration(exercise = exercise)
             Text("${exercise.category} · ${exercise.equipment} · ${exercise.difficulty}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             InfoCard("Primary muscles", exercise.primaryMuscles)
             InfoCard("Secondary muscles", exercise.secondaryMuscles.ifBlank { "Not specified" })
