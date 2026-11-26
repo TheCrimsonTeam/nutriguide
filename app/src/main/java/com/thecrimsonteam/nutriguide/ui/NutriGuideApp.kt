@@ -94,7 +94,7 @@ fun NutriGuideApp(viewModel: AppViewModel) {
     val context = LocalContext.current
     val revision = remember { mutableIntStateOf(0) }
     DisposableEffect(viewModel) {
-        val observer = { revision.intValue++ }
+        val observer: () -> Unit = { revision.intValue += 1 }
         viewModel.observe(observer)
         onDispose { viewModel.removeObserver(observer) }
     }
