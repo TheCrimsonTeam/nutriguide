@@ -631,9 +631,32 @@ private fun FoodDraftCard(draft: FoodDraft, onChange: (FoodDraft) -> Unit, onRem
                     }
                 }
                 OutlinedTextField(draft.name, { onChange(draft.copy(name = it)) }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                if (draft.alternativeNames.isNotEmpty()) {
+                    Text("Possible alternatives: ${draft.alternativeNames.joinToString()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                draft.servingDescription?.let { Text("Serving estimate: $it", style = MaterialTheme.typography.bodySmall) }
+                draft.identificationConfidence?.let { Text("Identification confidence: $it", style = MaterialTheme.typography.labelSmall) }
+                draft.portionUncertainty?.let { Text("Portion uncertainty: $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (draft.nutritionCandidates.isNotEmpty()) {
+                    Text("Nutrition database matches", style = MaterialTheme.typography.titleSmall)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        draft.nutritionCandidates.forEach { candidate ->
+                            FilterChip(
+                                selected = draft.selectedNutritionFdcId == candidate.fdcId,
+                                onClick = { onChange(draft.selectNutrition(candidate)) },
+                                label = {
+                                    Text(candidate.description.take(38) + " · match " + (candidate.matchScore * 100).toInt() + "%")
+                                }
+                            )
+                        }
+                    }
+                    Text("Match score ranks text similarity; it is not a probability. Choose the closest food.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text("No nutrition match supplied. Nutrients remain unknown until entered or matched.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 OutlinedTextField(
                     draft.portionGrams.toString().removeSuffix(".0"),
-                    { value -> onChange(draft.copy(portionGrams = value.toDoubleOrNull() ?: 0.0)) },
+                    { value -> onChange(draft.withPortionGrams(value.toDoubleOrNull() ?: 0.0)) },
                     label = { Text("Serving (g)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
@@ -646,6 +669,10 @@ private fun FoodDraftCard(draft: FoodDraft, onChange: (FoodDraft) -> Unit, onRem
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     NumberField(draft.carbsG?.toString() ?: "", { onChange(draft.copy(carbsG = it.toDoubleOrNull())) }, "Carbs g", Modifier.weight(1f))
                     NumberField(draft.fatG?.toString() ?: "", { onChange(draft.copy(fatG = it.toDoubleOrNull())) }, "Fat g", Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumberField(draft.fiberG?.toString() ?: "", { onChange(draft.copy(fiberG = it.toDoubleOrNull())) }, "Fibre g", Modifier.weight(1f))
+                    NumberField(draft.sugarG?.toString() ?: "", { onChange(draft.copy(sugarG = it.toDoubleOrNull())) }, "Sugar g", Modifier.weight(1f))
                 }
                 draft.nutritionSource?.let { Text("Source: $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
                 draft.confidence?.let { Text("Recognition confidence: ${(it * 100).toInt()}% — review this item.", style = MaterialTheme.typography.labelSmall) }

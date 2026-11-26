@@ -102,7 +102,30 @@ class AppViewModel(
                         carbsG = item.carbsG,
                         fatG = item.fatG,
                         nutritionSource = item.nutritionSource,
-                        confidence = item.confidence
+                        confidence = item.confidence,
+                        fiberG = item.fiberG,
+                        sugarG = item.sugarG,
+                        alternativeNames = item.alternatives,
+                        servingDescription = item.servingDescription,
+                        pieceCount = item.pieceCount,
+                        identificationConfidence = item.confidenceLabel,
+                        portionUncertainty = item.portionUncertainty,
+                        visualObservations = item.visualObservations,
+                        nutritionCandidates = item.nutritionCandidates.map { candidate ->
+                            com.thecrimsonteam.nutriguide.domain.model.FoodNutritionCandidate(
+                                fdcId = candidate.fdcId,
+                                description = candidate.description,
+                                dataType = candidate.dataType,
+                                matchScore = candidate.matchScore,
+                                caloriesKcalPer100g = candidate.caloriesKcalPer100g,
+                                proteinGPer100g = candidate.proteinGPer100g,
+                                carbsGPer100g = candidate.carbsGPer100g,
+                                fatGPer100g = candidate.fatGPer100g,
+                                fiberGPer100g = candidate.fiberGPer100g,
+                                sugarGPer100g = candidate.sugarGPer100g,
+                                source = candidate.source
+                            )
+                        }
                     )
                 }
                 analysisMessage = response.message ?: if (foodDrafts.isEmpty()) {

@@ -33,6 +33,8 @@ data class FoodItemEntity(
     val proteinG: Double?,
     val carbsG: Double?,
     val fatG: Double?,
+    val fiberG: Double? = null,
+    val sugarG: Double? = null,
     val nutritionSource: String? = null,
     val recognitionConfidence: Double? = null
 )

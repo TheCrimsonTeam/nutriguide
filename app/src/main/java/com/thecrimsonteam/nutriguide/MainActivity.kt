@@ -6,6 +6,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.thecrimsonteam.nutriguide.data.local.NutriGuideDatabase
 import com.thecrimsonteam.nutriguide.data.remote.FoodAnalysisClient
 import com.thecrimsonteam.nutriguide.data.repository.LocalExerciseRepository
@@ -27,7 +29,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             NutriGuideDatabase::class.java,
             "nutriguide.db"
-        ).build()
+        ).addMigrations(MIGRATION_1_2).build()
 
         val factory = AppViewModelFactory(
             nutrition = LocalNutritionRepository(database, database.mealDao()),
@@ -40,5 +42,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             NutriGuideApp(viewModel = viewModel)
         }
+    }
+}
+
+
+private val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE food_items ADD COLUMN fiberG REAL")
+        database.execSQL("ALTER TABLE food_items ADD COLUMN sugarG REAL")
     }
 }

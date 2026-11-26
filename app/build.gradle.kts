@@ -14,6 +14,10 @@ val foodAnalysisBaseUrl = providers.gradleProperty("FOOD_ANALYSIS_BASE_URL")
     .orElse(providers.environmentVariable("FOOD_ANALYSIS_BASE_URL"))
     .orElse(localProperties.getProperty("FOOD_ANALYSIS_BASE_URL", ""))
     .get()
+val foodAnalysisClientToken = providers.gradleProperty("FOOD_ANALYSIS_CLIENT_TOKEN")
+    .orElse(providers.environmentVariable("FOOD_ANALYSIS_CLIENT_TOKEN"))
+    .orElse(localProperties.getProperty("FOOD_ANALYSIS_CLIENT_TOKEN", ""))
+    .get()
 
 android {
     namespace = "com.thecrimsonteam.nutriguide"
@@ -27,10 +31,11 @@ android {
         applicationId = "com.thecrimsonteam.nutriguide"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "FOOD_ANALYSIS_BASE_URL", "\"$foodAnalysisBaseUrl\"")
+        buildConfigField("String", "FOOD_ANALYSIS_CLIENT_TOKEN", "\"$foodAnalysisClientToken\"")
     }
 
     buildFeatures {
