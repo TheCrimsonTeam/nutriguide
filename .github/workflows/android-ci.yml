@@ -29,7 +29,12 @@ jobs:
           packages: platform-tools
 
       - name: Install Android platform
-        run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+        run: |
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+          # Some Android Gradle Plugin releases still look up API 37 as android-37.
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          fi
 
       - name: Set up Gradle 9.6.0
         uses: gradle/actions/setup-gradle@v4
