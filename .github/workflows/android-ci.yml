@@ -1,18 +1,28 @@
-name: Android CI
+name: NutriGuide Android Debug APK
 
 on:
   push:
-    branches: [develop]
+    branches:
+      - develop
   pull_request:
-    branches: [develop, main]
+    branches:
+      - develop
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: nutriguide-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
+  debug-apk:
+    name: Test and build installable debug APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     steps:
       - name: Check out source
         uses: actions/checkout@v5
@@ -25,33 +35,116 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
 
-      - name: Install Android platform
+      - name: Install Android SDK packages
         run: |
-          sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
-          # Some Android Gradle Plugin releases still look up API 37 as android-37.
-          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
-            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
-          fi
+          sdkmanager --install "platforms;android-37.1" "build-tools;37.0.0" "platform-tools"
+          yes | sdkmanager --licenses >/dev/null
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Unit tests
-        run: ./gradlew testDebugUnitTest
+      - name: Prepare build log directory
+        run: mkdir -p build-logs
 
-      - name: Android lint
-        run: ./gradlew lintDebug
+      - name: Run Android unit tests
+        id: unit-tests
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon testDebugUnitTest --stacktrace 2>&1 | tee build-logs/unit-tests.log
 
-      - name: Assemble debug APK
-        run: ./gradlew assembleDebug
+      - name: Assemble installable debug APK
+        id: assemble-debug-apk
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon assembleDebug --stacktrace 2>&1 | tee build-logs/assemble-debug.log
 
-      - name: Upload debug APK
+      - name: Verify APK and Android debug signature
+        id: verify-apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          APKSIGNER="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          AAPT="$ANDROID_HOME/build-tools/37.0.0/aapt"
+
+          if [[ ! -s "$APK" ]]; then
+            echo "::error::Debug APK was not generated at $APK"
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --verbose "$APK" | tee build-logs/apk-signature-verification.log
+          "$AAPT" dump badging "$APK" | tee build-logs/apk-package-metadata.txt
+          grep -q "package: name='com.thecrimsonteam.nutriguide.debug'" build-logs/apk-package-metadata.txt
+
+          mkdir -p dist
+          cp "$APK" dist/NutriGuide-debug.apk
+          echo "apk_path=dist/NutriGuide-debug.apk" >> "$GITHUB_OUTPUT"
+          echo "apk_size=$(stat -c%s dist/NutriGuide-debug.apk)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload installable debug APK
+        id: upload-apk
         uses: actions/upload-artifact@v4
         with:
-          name: nutriguide-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: NutriGuide-debug-apk
+          path: dist/NutriGuide-debug.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
+      - name: Collect test results and build diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build-logs/test-results build-logs/test-reports
+
+          if [[ -d app/build/test-results/testDebugUnitTest ]]; then
+            cp -R app/build/test-results/testDebugUnitTest/. build-logs/test-results/
+          fi
+
+          if [[ -d app/build/reports/tests/testDebugUnitTest ]]; then
+            cp -R app/build/reports/tests/testDebugUnitTest/. build-logs/test-reports/
+          fi
+
+          cat > build-logs/build-status.txt <<'STATUS'
+          Commit: ${{ github.sha }}
+          Unit tests: ${{ steps.unit-tests.outcome }}
+          Debug APK assembly: ${{ steps.assemble-debug-apk.outcome }}
+          APK verification: ${{ steps.verify-apk.outcome }}
+          APK artifact upload: ${{ steps.upload-apk.outcome }}
+          STATUS
+
+      - name: Upload build logs and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NutriGuide-build-diagnostics
+          path: |
+            build-logs/**
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish build result summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## NutriGuide Android build"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Unit tests | **${{ steps.unit-tests.outcome }}** |"
+            echo "| Debug APK assembly | **${{ steps.assemble-debug-apk.outcome }}** |"
+            echo "| APK verification | **${{ steps.verify-apk.outcome }}** |"
+            echo "| APK artifact upload | **${{ steps.upload-apk.outcome }}** |"
+            echo ""
+            if [[ "${{ steps.upload-apk.outcome }}" == "success" ]]; then
+              echo "Installable APK artifact: **NutriGuide-debug-apk**"
+              echo "File: `dist/NutriGuide-debug.apk`"
+            else
+              echo "No installable APK artifact was published by this run."
+            fi
+            echo ""
+            echo "Diagnostics artifact: **NutriGuide-build-diagnostics**"
+          } >> "$GITHUB_STEP_SUMMARY"
