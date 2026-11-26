@@ -52,7 +52,7 @@ Versions were selected against the official Android, Kotlin and Gradle release d
 
 ## Build locally
 
-1. Install Android Studio with Android SDK Platform 36 and JDK 17.
+1. Install Android Studio with Android SDK Platform 37 and JDK 17.
 2. Install Gradle 9.6.0, or configure Android Studio to use that Gradle version.
 3. Open this repository in Android Studio and allow Gradle sync.
 4. Copy `local.properties.example` to `local.properties` and optionally set `FOOD_ANALYSIS_BASE_URL`.

@@ -15,4 +15,3 @@ keystore.properties
 secrets.properties
 
 # Generated Room schemas
-app/schemas/
