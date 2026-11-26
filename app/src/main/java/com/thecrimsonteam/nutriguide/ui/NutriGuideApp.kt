@@ -294,8 +294,10 @@ fun NutriGuideApp(viewModel: AppViewModel) {
                         workouts = viewModel.workouts,
                         onStart = { viewModel.startWorkout(); route = "library" },
                         onLibrary = { route = "library" },
-                        onHistory = { route = "history" }
+                        onHistory = { route = "history" },
+                        onIntervalTimer = { route = "interval-timer" }
                     )
+                    "interval-timer" -> IntervalTimerScreen(onBack = { route = "workouts" })
                     "library" -> ExerciseLibraryScreen(
                         viewModel = viewModel,
                         selectedExerciseId = selectedExerciseId,
@@ -784,7 +786,8 @@ private fun WorkoutHome(
     workouts: List<com.thecrimsonteam.nutriguide.data.local.WorkoutEntity>,
     onStart: () -> Unit,
     onLibrary: () -> Unit,
-    onHistory: () -> Unit
+    onHistory: () -> Unit,
+    onIntervalTimer: () -> Unit
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
