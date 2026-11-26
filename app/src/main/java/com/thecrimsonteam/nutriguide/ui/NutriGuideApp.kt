@@ -52,6 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -68,6 +69,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -134,24 +137,44 @@ fun NutriGuideApp(viewModel: AppViewModel) {
 
     NutriGuideTheme(mode = themeMode) {
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 if (route != "camera") {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("nutri", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            Text("guide", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                        }
-                        if (route == "settings") {
-                            IconButton(onClick = { route = "nutrition" }) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("N", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                }
                             }
-                        } else {
-                            IconButton(onClick = { route = "settings" }) {
-                                Icon(Icons.Default.Settings, contentDescription = "Settings")
+                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                Text("NUTRIGUIDE", style = MaterialTheme.typography.labelLarge, letterSpacing = 1.1.sp)
+                                Text("FOOD · FITNESS · DAILY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.7.sp)
+                            }
+                        }
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            IconButton(onClick = {
+                                if (route == "settings") route = "nutrition" else route = "settings"
+                            }) {
+                                Icon(
+                                    if (route == "settings") Icons.Default.ArrowBack else Icons.Default.Settings,
+                                    contentDescription = if (route == "settings") "Back" else "Settings",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                         }
                     }
@@ -159,19 +182,47 @@ fun NutriGuideApp(viewModel: AppViewModel) {
             },
             bottomBar = {
                 if (route == "nutrition" || route == "workouts") {
-                    NavigationBar {
-                        NavigationBarItem(
-                            selected = route == "nutrition",
-                            onClick = { route = "nutrition" },
-                            icon = { Icon(Icons.Default.Restaurant, contentDescription = null) },
-                            label = { Text("Nutrition") }
-                        )
-                        NavigationBarItem(
-                            selected = route == "workouts",
-                            onClick = { route = "workouts" },
-                            icon = { Icon(Icons.Default.FitnessCenter, contentDescription = null) },
-                            label = { Text("Workouts") }
-                        )
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.8f)),
+                        shadowElevation = 10.dp
+                    ) {
+                        NavigationBar(
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp,
+                            windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+                        ) {
+                            NavigationBarItem(
+                                selected = route == "nutrition",
+                                onClick = { route = "nutrition" },
+                                icon = { Icon(Icons.Default.Restaurant, contentDescription = "Nutrition") },
+                                label = { Text("Nutrition") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                            NavigationBarItem(
+                                selected = route == "workouts",
+                                onClick = { route = "workouts" },
+                                icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Workouts") },
+                                label = { Text("Workouts") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -281,73 +332,164 @@ private fun NutritionHome(
     onDiary: () -> Unit,
     onMeal: (String) -> Unit
 ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Nutrition", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
-        Text("Keep a simple record of the meals you enjoy.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Your food diary", style = MaterialTheme.typography.titleMedium)
-                Text("Log meals with a photo or add the foods yourself. Nutrition values are estimates and can be reviewed before saving.", style = MaterialTheme.typography.bodyMedium)
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("YOUR DAILY OVERVIEW", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Nutrition.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Text("A calmer way to keep track of what you eat.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("FOOD DIARY", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)) {
+                        Text("TODAY", modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                Text("Every meal tells a story.", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "Capture a meal or add its ingredients. Review each entry before it becomes part of your diary.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Button(
+                    onClick = onScan,
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                    Spacer(Modifier.width(9.dp))
+                    Text("Scan a meal")
+                }
+                OutlinedButton(
+                    onClick = onManual,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(9.dp))
+                    Text("Add meal manually")
+                }
             }
         }
-        Button(onClick = onScan, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.PhotoCamera, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Scan a meal")
+
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Recent meals", style = MaterialTheme.typography.titleLarge)
+                Text("Your latest entries", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(onClick = onDiary) { Text("View all  →") }
         }
-        OutlinedButton(onClick = onManual, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Add meal manually")
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("Recent meals", style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = onDiary) { Text("View diary") }
-        }
+
         if (meals.isEmpty()) {
-            EmptyCard("No meals logged yet", "Your saved meals will appear here. You can add foods manually or try a photo scan.")
+            EmptyCard("Your diary is clear", "Your saved breakfasts, lunches, dinners and snacks will appear here.")
         } else {
             meals.take(8).forEach { meal ->
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable { onMeal(meal.id) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.75f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(42.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Restaurant, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(meal.mealType, style = MaterialTheme.typography.titleMedium)
                             Text(formatDate(meal.createdAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text("Details  ›", color = MaterialTheme.colorScheme.primary)
+                        Text("↗", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         }
-        Text("Nutrition is personal. NutriGuide records information without daily targets or judgement.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "Nutrition is personal. Keep the details that matter to you.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun ScanScreen(onCamera: () -> Unit, onGallery: () -> Unit, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        BackHeading("Scan a meal", onBack)
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-            Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
-                Text("Photograph the whole plate", style = MaterialTheme.typography.titleMedium)
-                Text("Try even lighting and include every visible food. Mixed meals may need you to confirm components, ingredients and serving sizes.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        BackHeading("Food scanner", onBack)
+        Text("Make the meal visible.", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "Take a clear photo of the whole plate or choose one from your gallery.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.8f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.size(76.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(32.dp))
+                    }
+                }
+                Text("Photograph the whole plate", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Use even lighting and include every visible food. Portion sizes from a photo are estimates, not measured weights.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
-        Button(onClick = onCamera, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onCamera, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) {
             Icon(Icons.Default.PhotoCamera, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Take a photo")
+            Spacer(Modifier.width(9.dp))
+            Text("Open camera")
         }
-        OutlinedButton(onClick = onGallery, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = onGallery, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
             Icon(Icons.Default.Image, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(9.dp))
             Text("Choose from gallery")
         }
-        Text("A photo cannot reliably reveal hidden ingredients, exact weights or cooking oil. You will review every estimate before it is saved.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        InfoCard(
+            "A note on accuracy",
+            "Photos cannot reliably reveal hidden ingredients, exact weight or cooking oil. Every estimate should be reviewed before saving."
+        )
     }
 }
 
@@ -598,35 +740,64 @@ private fun WorkoutHome(
     onLibrary: () -> Unit,
     onHistory: () -> Unit
 ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Workouts", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
-        Text("Choose movements and record the details that matter for each one.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Start a workout")
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("TRAINING / OVERVIEW", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Workouts.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Text("Build a session around the movements you choose.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        OutlinedButton(onClick = onLibrary, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.Search, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Browse exercise library")
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)) {
+                    Icon(Icons.Default.FitnessCenter, contentDescription = null, modifier = Modifier.padding(13.dp), tint = MaterialTheme.colorScheme.onSurface)
+                }
+                Text("Your next session starts here.", style = MaterialTheme.typography.headlineSmall)
+                Text("Choose exercises, record sets, reps, weight, time or distance.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Start a workout")
+                }
+                OutlinedButton(onClick = onLibrary, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Explore exercise library")
+                }
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Recent workouts", style = MaterialTheme.typography.titleLarge)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Recent sessions", style = MaterialTheme.typography.titleLarge)
+                Text("Your training history", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             TextButton(onClick = onHistory) {
                 Icon(Icons.Default.History, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
                 Text("History")
             }
         }
         if (workouts.isEmpty()) {
-            EmptyCard("No workouts saved", "Start a workout, add exercises and log sets, time or distance.")
+            EmptyCard("No sessions yet", "Your completed and in-progress workouts will appear here.")
         } else {
             workouts.take(8).forEach { workout ->
-                Card {
-                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(workout.name, style = MaterialTheme.typography.titleMedium)
                         Text(formatDate(workout.startedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(if (workout.finishedAt == null) "In progress" else "Completed", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(if (workout.finishedAt == null) "IN PROGRESS" else "COMPLETED", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -937,8 +1108,20 @@ private fun FoodReviewScreenPreviewText() {}
 
 @Composable
 private fun BackHeading(title: String, onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        }
         Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -957,19 +1140,31 @@ private fun NumberField(value: String, onValueChange: (String) -> Unit, label: S
 
 @Composable
 private fun EmptyCard(title: String, description: String) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.8f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
 private fun InfoCard(title: String, description: String) {
-    Card {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.75f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
