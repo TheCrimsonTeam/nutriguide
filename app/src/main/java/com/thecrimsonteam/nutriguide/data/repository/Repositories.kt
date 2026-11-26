@@ -11,6 +11,9 @@ import com.thecrimsonteam.nutriguide.data.local.WorkoutDao
 import com.thecrimsonteam.nutriguide.data.local.WorkoutEntity
 import com.thecrimsonteam.nutriguide.data.local.WorkoutEntryEntity
 import com.thecrimsonteam.nutriguide.data.local.WorkoutSetEntity
+import com.thecrimsonteam.nutriguide.data.local.WorkoutRoutineEntity
+import com.thecrimsonteam.nutriguide.data.local.RoutineExerciseEntity
+import com.thecrimsonteam.nutriguide.data.local.ScheduledWorkoutEntity
 import kotlinx.coroutines.flow.Flow
 
 interface NutritionRepository {
@@ -49,9 +52,22 @@ interface TrainingRepository {
     suspend fun deleteEntry(id: String)
     suspend fun deleteSet(id: String)
     suspend fun finishWorkout(id: String)
+    fun routines(): Flow<List<WorkoutRoutineEntity>>
+    suspend fun getRoutine(id: String): WorkoutRoutineEntity?
+    suspend fun routineExercises(routineId: String): List<RoutineExerciseEntity>
+    suspend fun saveRoutine(routine: WorkoutRoutineEntity, items: List<RoutineExerciseEntity>)
+    suspend fun deleteRoutine(id: String)
+    fun scheduledWorkouts(): Flow<List<ScheduledWorkoutEntity>>
+    suspend fun getScheduledWorkout(id: String): ScheduledWorkoutEntity?
+    suspend fun scheduleWorkout(item: ScheduledWorkoutEntity)
+    suspend fun updateScheduledWorkout(item: ScheduledWorkoutEntity)
+    suspend fun deleteScheduledWorkout(id: String)
 }
 
-class LocalTrainingRepository(private val dao: WorkoutDao) : TrainingRepository {
+class LocalTrainingRepository(
+    private val database: NutriGuideDatabase,
+    private val dao: WorkoutDao
+) : TrainingRepository {
     override fun workouts() = dao.observeWorkouts()
     override fun entries(workoutId: String) = dao.observeEntries(workoutId)
     override fun sets(entryId: String) = dao.observeSets(entryId)
@@ -65,6 +81,22 @@ class LocalTrainingRepository(private val dao: WorkoutDao) : TrainingRepository 
     override suspend fun deleteEntry(id: String) = dao.deleteEntry(id)
     override suspend fun deleteSet(id: String) = dao.deleteSet(id)
     override suspend fun finishWorkout(id: String) = dao.finishWorkout(id, System.currentTimeMillis())
+    override fun routines() = dao.observeRoutines()
+    override suspend fun getRoutine(id: String) = dao.getRoutine(id)
+    override suspend fun routineExercises(routineId: String) = dao.getRoutineExercises(routineId)
+    override suspend fun saveRoutine(routine: WorkoutRoutineEntity, items: List<RoutineExerciseEntity>) {
+        database.withTransaction {
+            dao.insertRoutine(routine)
+            dao.deleteRoutineExercises(routine.id)
+            if (items.isNotEmpty()) dao.insertRoutineExercises(items)
+        }
+    }
+    override suspend fun deleteRoutine(id: String) = dao.deleteRoutine(id)
+    override fun scheduledWorkouts() = dao.observeScheduledWorkouts()
+    override suspend fun getScheduledWorkout(id: String) = dao.getScheduledWorkout(id)
+    override suspend fun scheduleWorkout(item: ScheduledWorkoutEntity) = dao.insertScheduledWorkout(item)
+    override suspend fun updateScheduledWorkout(item: ScheduledWorkoutEntity) = dao.updateScheduledWorkout(item)
+    override suspend fun deleteScheduledWorkout(id: String) = dao.deleteScheduledWorkout(id)
 }
 
 interface ExerciseRepository {

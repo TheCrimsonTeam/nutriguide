@@ -42,6 +42,42 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sets WHERE entryId = :entryId ORDER BY setNumber")
     fun observeSets(entryId: String): Flow<List<WorkoutSetEntity>>
 
+    @Query("SELECT * FROM workout_routines ORDER BY updatedAt DESC")
+    fun observeRoutines(): Flow<List<WorkoutRoutineEntity>>
+
+    @Query("SELECT * FROM workout_routines WHERE id = :id LIMIT 1")
+    suspend fun getRoutine(id: String): WorkoutRoutineEntity?
+
+    @Query("SELECT * FROM routine_exercises WHERE routineId = :routineId ORDER BY sortOrder")
+    suspend fun getRoutineExercises(routineId: String): List<RoutineExerciseEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutine(routine: WorkoutRoutineEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutineExercises(exercises: List<RoutineExerciseEntity>)
+
+    @Query("DELETE FROM routine_exercises WHERE routineId = :routineId")
+    suspend fun deleteRoutineExercises(routineId: String)
+
+    @Query("DELETE FROM workout_routines WHERE id = :id")
+    suspend fun deleteRoutine(id: String)
+
+    @Query("SELECT * FROM scheduled_workouts ORDER BY scheduledDay ASC")
+    fun observeScheduledWorkouts(): Flow<List<ScheduledWorkoutEntity>>
+
+    @Query("SELECT * FROM scheduled_workouts WHERE id = :id LIMIT 1")
+    suspend fun getScheduledWorkout(id: String): ScheduledWorkoutEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertScheduledWorkout(item: ScheduledWorkoutEntity)
+
+    @Update
+    suspend fun updateScheduledWorkout(item: ScheduledWorkoutEntity)
+
+    @Query("DELETE FROM scheduled_workouts WHERE id = :id")
+    suspend fun deleteScheduledWorkout(id: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkout(workout: WorkoutEntity)
 

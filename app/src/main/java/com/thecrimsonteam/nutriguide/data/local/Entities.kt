@@ -67,7 +67,14 @@ data class WorkoutEntryEntity(
     val exerciseName: String,
     val category: String,
     val trackingType: String,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val plannedSets: Int? = null,
+    val targetReps: Int? = null,
+    val targetWeightKg: Double? = null,
+    val restSeconds: Int? = null,
+    val targetDurationSeconds: Int? = null,
+    val targetDistanceMeters: Double? = null,
+    val notes: String? = null
 )
 
 @Entity(
@@ -102,4 +109,61 @@ data class CustomExerciseEntity(
     val instructions: String,
     val trackingType: String = "STRENGTH",
     val aliases: String = ""
+)
+
+
+@Entity(tableName = "workout_routines")
+data class WorkoutRoutineEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val description: String = "",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(
+    tableName = "routine_exercises",
+    foreignKeys = [ForeignKey(
+        entity = WorkoutRoutineEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["routineId"],
+        onDelete = ForeignKey.CASCADE
+    )],
+    indices = [Index("routineId")]
+)
+data class RoutineExerciseEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val routineId: String,
+    val exerciseId: String,
+    val exerciseName: String,
+    val category: String,
+    val trackingType: String,
+    val sortOrder: Int,
+    val targetSets: Int = 3,
+    val targetReps: Int = 8,
+    val targetWeightKg: Double? = null,
+    val restSeconds: Int = 60,
+    val targetDurationSeconds: Int? = null,
+    val targetDistanceMeters: Double? = null,
+    val notes: String = ""
+)
+
+@Entity(
+    tableName = "scheduled_workouts",
+    foreignKeys = [ForeignKey(
+        entity = WorkoutRoutineEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["routineId"],
+        onDelete = ForeignKey.CASCADE
+    )],
+    indices = [Index("routineId"), Index("scheduledDay")]
+)
+data class ScheduledWorkoutEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val routineId: String,
+    /** LocalDate.toEpochDay(), stored as a stable date-only value. */
+    val scheduledDay: Long,
+    val status: String = "PLANNED",
+    val completedWorkoutId: String? = null,
+    val notes: String = ""
 )

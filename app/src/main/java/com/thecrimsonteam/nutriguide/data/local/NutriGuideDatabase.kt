@@ -10,9 +10,12 @@ import androidx.room.RoomDatabase
         WorkoutEntity::class,
         WorkoutEntryEntity::class,
         WorkoutSetEntity::class,
-        CustomExerciseEntity::class
+        CustomExerciseEntity::class,
+        WorkoutRoutineEntity::class,
+        RoutineExerciseEntity::class,
+        ScheduledWorkoutEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class NutriGuideDatabase : RoomDatabase() {

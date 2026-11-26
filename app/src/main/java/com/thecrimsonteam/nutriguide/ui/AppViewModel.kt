@@ -11,6 +11,9 @@ import com.thecrimsonteam.nutriguide.data.local.MealEntity
 import com.thecrimsonteam.nutriguide.data.local.WorkoutEntity
 import com.thecrimsonteam.nutriguide.data.local.WorkoutEntryEntity
 import com.thecrimsonteam.nutriguide.data.local.WorkoutSetEntity
+import com.thecrimsonteam.nutriguide.data.local.WorkoutRoutineEntity
+import com.thecrimsonteam.nutriguide.data.local.RoutineExerciseEntity
+import com.thecrimsonteam.nutriguide.data.local.ScheduledWorkoutEntity
 import com.thecrimsonteam.nutriguide.data.remote.FoodAnalysisApi
 import com.thecrimsonteam.nutriguide.data.repository.ExerciseRepository
 import com.thecrimsonteam.nutriguide.data.repository.NutritionRepository
@@ -25,6 +28,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.UUID
+import java.time.LocalDate
 
 class AppViewModel(
     private val nutrition: NutritionRepository,
@@ -35,6 +39,10 @@ class AppViewModel(
     var meals: List<MealEntity> = emptyList()
         private set
     var workouts: List<WorkoutEntity> = emptyList()
+        private set
+    var routines: List<WorkoutRoutineEntity> = emptyList()
+        private set
+    var scheduledWorkouts: List<ScheduledWorkoutEntity> = emptyList()
         private set
     var customExercises: List<CustomExerciseEntity> = emptyList()
         private set
@@ -71,12 +79,15 @@ class AppViewModel(
             }
         }
         viewModelScope.launch { exercises.customExercises().collectLatest { customExercises = it; refresh() } }
+        viewModelScope.launch { training.routines().collectLatest { routines = it; refresh() } }
+        viewModelScope.launch { training.scheduledWorkouts().collectLatest { scheduledWorkouts = it; refresh() } }
     }
 
     private val observers = mutableSetOf<() -> Unit>()
     private var activeEntriesJob: Job? = null
     private var sessionCheckpointJob: Job? = null
     private var recoveredSession = false
+    private var activeScheduledWorkoutId: String? = null
     fun observe(observer: () -> Unit) { observers += observer }
     fun removeObserver(observer: () -> Unit) { observers -= observer }
     private fun refresh() { observers.toList().forEach { it() } }
@@ -195,21 +206,139 @@ class AppViewModel(
     fun deleteMeal(mealId: String) { viewModelScope.launch { nutrition.deleteMeal(mealId) } }
 
     fun startWorkout(name: String = "Workout") {
-        activeEntriesJob?.cancel()
-        sessionCheckpointJob?.cancel()
         val workout = WorkoutEntity(
             name = name.ifBlank { "Workout" },
             runningSinceElapsedRealtime = SystemClock.elapsedRealtime()
         )
+        activateWorkout(workout, null)
+        viewModelScope.launch { training.createWorkout(workout) }
+    }
+
+    private fun activateWorkout(workout: WorkoutEntity, scheduledId: String?) {
+        activeEntriesJob?.cancel()
+        sessionCheckpointJob?.cancel()
         recoveredSession = true
+        activeScheduledWorkoutId = scheduledId
         activeWorkout = workout
         activeWorkoutId = workout.id
         activeEntries = emptyList()
         setsByEntry = emptyMap()
         refresh()
-        viewModelScope.launch { training.createWorkout(workout) }
         observeWorkoutEntries(workout.id)
         startSessionCheckpoints()
+    }
+
+    fun saveRoutine(
+        id: String?,
+        name: String,
+        description: String,
+        selectedExercises: List<ExerciseDefinition>
+    ) {
+        viewModelScope.launch {
+            if (name.isBlank() || selectedExercises.isEmpty()) {
+                errorMessage = "Add a routine name and at least one exercise."
+                refresh()
+                return@launch
+            }
+            val previous = id?.let { training.getRoutine(it) }
+            val routineId = previous?.id ?: UUID.randomUUID().toString()
+            val previousItems = previous?.let { training.routineExercises(it.id) }.orEmpty()
+            val previousByExercise = previousItems.associateBy { it.exerciseId }
+            val now = System.currentTimeMillis()
+            val routine = WorkoutRoutineEntity(
+                id = routineId,
+                name = name.trim(),
+                description = description.trim(),
+                createdAt = previous?.createdAt ?: now,
+                updatedAt = now
+            )
+            val entries = selectedExercises.distinctBy { it.id }.mapIndexed { index, exercise ->
+                val old = previousByExercise[exercise.id]
+                RoutineExerciseEntity(
+                    routineId = routineId,
+                    exerciseId = exercise.id,
+                    exerciseName = exercise.name,
+                    category = exercise.category,
+                    trackingType = exercise.trackingType,
+                    sortOrder = index,
+                    targetSets = old?.targetSets ?: if (exercise.trackingType == "CARDIO" || exercise.trackingType == "DURATION") 1 else 3,
+                    targetReps = old?.targetReps ?: 8,
+                    targetWeightKg = old?.targetWeightKg,
+                    restSeconds = old?.restSeconds ?: 60,
+                    targetDurationSeconds = old?.targetDurationSeconds,
+                    targetDistanceMeters = old?.targetDistanceMeters,
+                    notes = old?.notes.orEmpty()
+                )
+            }
+            training.saveRoutine(routine, entries)
+            errorMessage = null
+            refresh()
+        }
+    }
+
+    fun deleteRoutine(id: String) {
+        viewModelScope.launch { training.deleteRoutine(id) }
+    }
+
+    suspend fun routineExercises(id: String): List<RoutineExerciseEntity> = training.routineExercises(id)
+
+    fun scheduleRoutine(routineId: String, day: Long) {
+        viewModelScope.launch {
+            training.scheduleWorkout(ScheduledWorkoutEntity(routineId = routineId, scheduledDay = day))
+        }
+    }
+
+    fun moveScheduledWorkout(id: String, dayOffset: Long) {
+        viewModelScope.launch {
+            val current = training.getScheduledWorkout(id) ?: return@launch
+            training.updateScheduledWorkout(current.copy(scheduledDay = current.scheduledDay + dayOffset))
+        }
+    }
+
+    fun setScheduledStatus(id: String, status: String) {
+        viewModelScope.launch {
+            val current = training.getScheduledWorkout(id) ?: return@launch
+            training.updateScheduledWorkout(current.copy(status = status))
+        }
+    }
+
+    fun removeScheduledWorkout(id: String) {
+        viewModelScope.launch { training.deleteScheduledWorkout(id) }
+    }
+
+    fun startScheduledWorkout(id: String) {
+        viewModelScope.launch {
+            val scheduled = training.getScheduledWorkout(id) ?: return@launch
+            if (scheduled.status == "COMPLETED") return@launch
+            val routine = training.getRoutine(scheduled.routineId) ?: return@launch
+            val planItems = training.routineExercises(routine.id)
+            val workout = WorkoutEntity(
+                name = routine.name,
+                runningSinceElapsedRealtime = SystemClock.elapsedRealtime()
+            )
+            activateWorkout(workout, scheduled.id)
+            training.createWorkout(workout)
+            planItems.forEach { item ->
+                training.addExercise(
+                    WorkoutEntryEntity(
+                        workoutId = workout.id,
+                        exerciseId = item.exerciseId,
+                        exerciseName = item.exerciseName,
+                        category = item.category,
+                        trackingType = item.trackingType,
+                        sortOrder = item.sortOrder,
+                        plannedSets = item.targetSets,
+                        targetReps = item.targetReps,
+                        targetWeightKg = item.targetWeightKg,
+                        restSeconds = item.restSeconds,
+                        targetDurationSeconds = item.targetDurationSeconds,
+                        targetDistanceMeters = item.targetDistanceMeters,
+                        notes = item.notes
+                    )
+                )
+            }
+            training.updateScheduledWorkout(scheduled.copy(status = "STARTED", completedWorkoutId = workout.id))
+        }
     }
 
     private fun recoverWorkout(saved: WorkoutEntity) {
@@ -359,6 +488,7 @@ class AppViewModel(
 
     fun finishWorkout() {
         val current = activeWorkout ?: return
+        val scheduledId = activeScheduledWorkoutId
         sessionCheckpointJob?.cancel()
         sessionCheckpointJob = null
         activeEntriesJob?.cancel()
@@ -371,10 +501,18 @@ class AppViewModel(
         )
         activeWorkout = null
         activeWorkoutId = null
+        activeScheduledWorkoutId = null
         activeEntries = emptyList()
         setsByEntry = emptyMap()
         refresh()
-        viewModelScope.launch { training.updateWorkout(finished) }
+        viewModelScope.launch {
+            training.updateWorkout(finished)
+            scheduledId?.let { id ->
+                training.getScheduledWorkout(id)?.let { plan ->
+                    training.updateScheduledWorkout(plan.copy(status = "COMPLETED", completedWorkoutId = finished.id))
+                }
+            }
+        }
     }
 
     fun saveCustomExercise(
