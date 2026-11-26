@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 @Composable
-fun WorkoutRestTimer(startTrigger: Int) {
+fun WorkoutRestTimer(startTrigger: Int, requestedSeconds: Int = 60) {
     var configuredSeconds by rememberSaveable { mutableIntStateOf(60) }
     var customSeconds by rememberSaveable { mutableStateOf("") }
     var remainingSeconds by rememberSaveable { mutableIntStateOf(60) }
@@ -49,8 +49,8 @@ fun WorkoutRestTimer(startTrigger: Int) {
         completed = false
     }
 
-    LaunchedEffect(startTrigger) {
-        if (startTrigger > 0) start(configuredSeconds)
+    LaunchedEffect(startTrigger, requestedSeconds) {
+        if (startTrigger > 0) start(requestedSeconds)
     }
     LaunchedEffect(running, paused, deadlineElapsedRealtime) {
         while (running && !paused) {

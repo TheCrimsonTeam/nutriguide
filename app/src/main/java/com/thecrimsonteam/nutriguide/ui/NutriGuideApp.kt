@@ -198,7 +198,7 @@ fun NutriGuideApp(viewModel: AppViewModel) {
                 }
             },
             bottomBar = {
-                if (route == "nutrition" || route == "workouts") {
+                if (route == "nutrition" || route == "workouts" || route == "plans") {
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -233,6 +233,19 @@ fun NutriGuideApp(viewModel: AppViewModel) {
                                 onClick = { route = "workouts" },
                                 icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Workouts") },
                                 label = { Text("Workouts") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                            NavigationBarItem(
+                                selected = route == "plans",
+                                onClick = { route = "plans" },
+                                icon = { Icon(Icons.Default.DateRange, contentDescription = "Plans") },
+                                label = { Text("Plans") },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.onSurface,
                                     selectedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -295,7 +308,14 @@ fun NutriGuideApp(viewModel: AppViewModel) {
                         onStart = { viewModel.startWorkout(); route = "library" },
                         onLibrary = { route = "library" },
                         onHistory = { route = "history" },
-                        onIntervalTimer = { route = "interval-timer" }
+                        onIntervalTimer = { route = "interval-timer" },
+                        onPlans = { route = "plans" }
+                    )
+                    "plans" -> RoutinePlannerScreen(
+                        viewModel = viewModel,
+                        allExercises = ExerciseCatalog.all + viewModel.customExercises.map { it.toDefinition() },
+                        onBack = { route = "workouts" },
+                        onStart = { route = "active-workout" }
                     )
                     "interval-timer" -> IntervalTimerScreen(onBack = { route = "workouts" })
                     "library" -> ExerciseLibraryScreen(
@@ -787,7 +807,8 @@ private fun WorkoutHome(
     onStart: () -> Unit,
     onLibrary: () -> Unit,
     onHistory: () -> Unit,
-    onIntervalTimer: () -> Unit
+    onIntervalTimer: () -> Unit,
+    onPlans: () -> Unit
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
@@ -821,6 +842,12 @@ private fun WorkoutHome(
                     Spacer(Modifier.width(8.dp))
                     Text("Explore exercise library")
                 }
+                OutlinedButton(onClick = onIntervalTimer, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
+                    Text("Interval timer")
+                }
+                OutlinedButton(onClick = onPlans, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
+                    Text("Build routines and plan your week")
+                }
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -847,6 +874,7 @@ private fun WorkoutHome(
                         Text(workout.name, style = MaterialTheme.typography.titleMedium)
                         Text(formatDate(workout.startedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(if (workout.finishedAt == null) "IN PROGRESS" else "COMPLETED", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatElapsedClock(workout.elapsedMillis), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -985,6 +1013,7 @@ private fun ExerciseDetailScreen(exercise: ExerciseDefinition?, onAdd: () -> Uni
 private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Unit, onFinish: () -> Unit) {
     val sessionElapsed = remember { mutableStateOf(viewModel.currentElapsedMillis()) }
     var restStartTrigger by rememberSaveable { mutableIntStateOf(0) }
+    var restSecondsToStart by rememberSaveable { mutableIntStateOf(60) }
     LaunchedEffect(viewModel.activeWorkoutId, viewModel.activeWorkout?.isPaused) {
         while (viewModel.activeWorkoutId != null) {
             sessionElapsed.value = viewModel.currentElapsedMillis()
@@ -1013,7 +1042,7 @@ private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Un
                 ) { Text(if (viewModel.activeWorkout?.isPaused == true) "Resume" else "Pause") }
             }
         }
-        WorkoutRestTimer(startTrigger = restStartTrigger)
+        WorkoutRestTimer(startTrigger = restStartTrigger, requestedSeconds = restSecondsToStart)
         if (viewModel.activeEntries.isEmpty()) {
             EmptyCard("No exercises added", "Browse the exercise library to add movements to this workout.")
         } else {
@@ -1023,7 +1052,10 @@ private fun ActiveWorkoutScreen(viewModel: AppViewModel, onAddExercise: () -> Un
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 10.dp)
             ) {
                 itemsIndexed(viewModel.activeEntries, key = { _, entry -> entry.id }) { index, entry ->
-                    WorkoutEntryCard(entry, viewModel, index, viewModel.activeEntries.size) { restStartTrigger += 1 }
+                    WorkoutEntryCard(entry, viewModel, index, viewModel.activeEntries.size) { seconds ->
+                        restSecondsToStart = seconds.coerceIn(5, 900)
+                        restStartTrigger += 1
+                    }
                 }
             }
         }
@@ -1046,11 +1078,11 @@ private fun formatElapsedClock(elapsedMillis: Long): String {
 }
 
 @Composable
-private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel, index: Int, total: Int, onSetSaved: () -> Unit) {
-    var reps by rememberSaveable(entry.id) { mutableStateOf("8") }
-    var weight by rememberSaveable(entry.id) { mutableStateOf("") }
-    var duration by rememberSaveable(entry.id) { mutableStateOf("20") }
-    var distance by rememberSaveable(entry.id) { mutableStateOf("") }
+private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel, index: Int, total: Int, onSetSaved: (Int) -> Unit) {
+    var reps by rememberSaveable(entry.id) { mutableStateOf(entry.targetReps?.toString() ?: "8") }
+    var weight by rememberSaveable(entry.id) { mutableStateOf(entry.targetWeightKg?.toString() ?: "") }
+    var duration by rememberSaveable(entry.id) { mutableStateOf(((entry.targetDurationSeconds ?: 1200) / 60).toString()) }
+    var distance by rememberSaveable(entry.id) { mutableStateOf(((entry.targetDistanceMeters ?: 0.0) / 1000.0).toString()) }
     var editingSetId by rememberSaveable(entry.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(entry.id) { viewModel.observeSets(entry.id) }
 
@@ -1060,6 +1092,9 @@ private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel,
                 Column(Modifier.weight(1f)) {
                     Text(entry.exerciseName, style = MaterialTheme.typography.titleMedium)
                     Text(entry.category, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if ((entry.plannedSets ?: 0) > 0) {
+                        Text("Target: ${entry.plannedSets} sets · ${entry.targetReps ?: "time/distance"} · Rest ${entry.restSeconds ?: 60}s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 IconButton(onClick = { viewModel.moveEntry(entry.id, -1) }, enabled = index > 0) {
                     Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move exercise up")
@@ -1093,7 +1128,7 @@ private fun WorkoutEntryCard(entry: WorkoutEntryEntity, viewModel: AppViewModel,
                         "DURATION" -> viewModel.addSet(entry, null, null, duration.toIntOrNull()?.times(60), null)
                         else -> viewModel.addSet(entry, reps.toIntOrNull(), weight.toDoubleOrNull(), null, null)
                     }
-                    onSetSaved()
+                    onSetSaved(entry.restSeconds ?: 60)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save set / activity") }
@@ -1156,7 +1191,7 @@ private fun WorkoutHistoryScreen(
                 items(workouts, key = { it.id }) { workout ->
                     InfoCard(
                         workout.name,
-                        "${formatDate(workout.startedAt)} · ${if (workout.finishedAt == null) "In progress" else "Completed"}"
+                        "${formatDate(workout.startedAt)} · ${if (workout.finishedAt == null) "In progress" else "Completed"} · ${formatElapsedClock(workout.elapsedMillis)}"
                     )
                 }
             }
